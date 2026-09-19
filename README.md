@@ -79,15 +79,24 @@ The additive organizer page combines finalized Instagram and blog themes interpr
 ## Streamlit Community Cloud deployment
 
 Deploy repository `qiaoying1014/klscm-sentiment-analysis`, branch `main`, with
-**main file path `deploy/streamlit_app.py`** and **Python 3.11** in Advanced settings.
+**main file path `deploy/streamlit_app.py`**. Python 3.11 is supported, and the
+requirements also support the Python 3.14 runtime used by the current Cloud app.
 This opens the finalized research dashboard. `app.py` is the older preparation
 dashboard and needs local intermediate data.
 
 The Cloud entry point uses the SHA-256-verified snapshot in `deploy/dashboard_data/`.
 It needs no OpenAI key, downloaded model, or API calls. The adjacent
-`deploy/requirements.txt` installs only dashboard dependencies; `deploy/packages.txt`
+`deploy/requirements.txt` installs only dashboard dependencies; root `packages.txt`
 provides a Linux CJK font. Streamlit selects dependency files next to the entry point
 before root-level files (see the [official dependency documentation](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/app-dependencies)).
+
+The multiple-requirements warning is expected: Cloud uses the file beside the
+entry point, while root `requirements.txt` remains the local research environment.
+NumPy is pinned to 2.3.5 on Python 3.11+ for prebuilt Python 3.14 wheels, and to
+2.2.6 on the existing local Python 3.10 environment. After a dependency update,
+Cloud automatically reinstalls dependencies. If the old import error remains after
+the build finishes, use **Manage app → Reboot app**. Check the build log for the
+selected Python version and successful installation of Plotly, not just resolution.
 
 To preview the exact Cloud entry point locally:
 

@@ -52,7 +52,7 @@ an independent reconstruction of the research environment. Corruption fails clos
 `.gitattributes` prevents Git newline conversion from invalidating bundle hashes.
 
 `deploy/requirements.txt` pins the locally verified dashboard dependencies;
-`deploy/packages.txt` installs `fonts-noto-cjk`, and `absa_dashboard.py` recognizes
+Root `packages.txt` installs `fonts-noto-cjk`, and `absa_dashboard.py` recognizes
 the Linux font path. Select Python 3.11 and `deploy/streamlit_app.py` on Community
 Cloud. The root research requirements remain available for local pipeline work.
 `.gitignore` excludes processed data, caches, models, raw source exports, local work
@@ -87,6 +87,45 @@ and setting upstream tracking. The oversized original commit remains only on the
 local `backup/pre-cloud-20260919` branch. Research inputs and outputs remain on disk.
 The repository is published and ready for the user to select the documented Cloud
 entry point; no live Streamlit URL or successful Cloud build is claimed.
+
+#### Cloud dependency failure and Python 3.14 compatibility correction (19 September 2026)
+
+After publication, the user attempted deployment at
+`https://klscm-sentiment-analysis.streamlit.app/` and reported a redacted
+`ModuleNotFoundError` at `import plotly.express`. The supplied Cloud log confirms
+Python **3.14.7**, despite the initial instructions recommending 3.11, and confirms
+that Cloud selected `deploy/requirements.txt`. The multiple-requirements warning
+therefore does not demonstrate a missing dependency file. The supplied log shows
+resolution of 53 packages and a later generic installed message, but no complete
+installation transcript or unredacted missing-module name; the exact installation
+failure cannot be conclusively attributed from that log alone.
+
+PyPI release metadata was checked directly: the original NumPy 2.2.6 pin has no
+Linux CPython 3.14 wheel; NumPy 2.3.5 does. The other pinned compiled dependencies
+(pandas 2.3.3, PyArrow 24.0.0 and WordCloud 1.9.6) have Linux CPython 3.14 wheels;
+Plotly 6.9.0 and Streamlit 1.59.2 have platform-independent wheels. The deployment
+requirements now select NumPy 2.3.5 for Python >=3.11 and preserve 2.2.6 for the
+existing Python 3.10 research environment. This addresses an identified runtime
+compatibility defect without changing research artifacts or the export bundle.
+
+The font package file was also moved from `deploy/packages.txt` to root
+`packages.txt`, the location documented by Streamlit for apt-get dependencies.
+The dependency selection and automatic reinstall behavior were checked against
+the [official Streamlit dependency documentation](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/app-dependencies)
+and [app management documentation](https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app).
+
+An isolated Python 3.14.7 environment under ignored `.local/cloud314/` was created
+using uv; the updated deployment requirements and pytest installed successfully.
+All dashboard imports, including `plotly.express`, passed with NumPy 2.3.5.
+A Linux x86-64 Python 3.14 uv dry-run also resolved 53 packages with binary-only
+constraints for NumPy, pandas, PyArrow and WordCloud. This checks Linux resolution,
+not execution on Linux. The original `.venv` and research dataset were not altered.
+The isolated Python 3.14.7 command
+`.local/cloud314/Scripts/python.exe -m pytest tests/test_cloud_deployment.py -q`
+passed both tests in 14.16 s, including all 12 pages, both word-cloud modes, and
+tamper rejection without the original research artifacts. A successful live Cloud
+rebuild remains unverified; the user should allow dependency installation to
+finish and reboot the app if its prior error remains cached.
 
 This document explains what the project investigates, when recorded activities occurred, where methods and artifacts are located, how each stage works, and what outcomes are verified. It is intended to support later thesis methodology, implementation, results, limitations, ethics, and reproducibility chapters. It is not a work log.
 
