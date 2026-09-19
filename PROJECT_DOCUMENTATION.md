@@ -75,6 +75,19 @@ confirming they predate this deployment change. They remain unresolved and do
 not constitute a passing full research suite. The isolated Cloud tests passed;
 actual Community Cloud deployment has not been executed in this task.
 
+The final focused dashboard/deployment run passed **47 tests in 49.65 s** across
+`test_cloud_deployment.py`, `test_absa_dashboard_ui.py`,
+`test_reviewed_theme_dashboard_data.py`, `test_blog_dashboard_data.py`,
+`test_wordcloud_data.py`, and `test_participant_experience_dashboard_finalized.py`.
+All 34 exported file hashes also matched the bytes stored in Git. The replacement
+initial commit `463eaafc` contained 205 files totaling 8,892,218 bytes; its largest
+file was `deploy/dashboard_data/wordcloud_mentions.parquet` (3,277,092 bytes).
+`git push -u origin main` succeeded on 19 September 2026, creating remote `main`
+and setting upstream tracking. The oversized original commit remains only on the
+local `backup/pre-cloud-20260919` branch. Research inputs and outputs remain on disk.
+The repository is published and ready for the user to select the documented Cloud
+entry point; no live Streamlit URL or successful Cloud build is claimed.
+
 This document explains what the project investigates, when recorded activities occurred, where methods and artifacts are located, how each stage works, and what outcomes are verified. It is intended to support later thesis methodology, implementation, results, limitations, ethics, and reproducibility chapters. It is not a work log.
 
 Dates come from embedded source dates, `data/processed/run_manifest.jsonl`, timestamped backup names, file metadata, and direct verification. The checkout has no usable Git history, so filesystem timestamps are supporting evidence rather than proof of when a method was conceived. The document distinguishes:
