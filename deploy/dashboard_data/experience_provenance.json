@@ -1,0 +1,42 @@
+{
+  "version": "participant_experience_v2_rt08",
+  "review_status": "finalized",
+  "reviewer": "AI-assisted researcher review (ChatGPT)",
+  "finalized_at": "2026-09-19T07:28:44.234968+00:00",
+  "hashes": {
+    "evidence.json": "928e8aa8f04b0fa0d4daea6857c6cd6f67683442c91018f932681be6baf88637",
+    "evidence_manifest.json": "f51e0d16a09d8f32e7d44b20566ac2f4ffcff48becc0b0097f52a269b0d5a1c8",
+    "requests.jsonl": "c80972e196199571ff04f6b3c64857b37886e92e449ada4663c41cb1c3ce1553",
+    "request_manifest.json": "68492a1c5fff8561ba34e758b1a84425b7475ae24077a530826bd619f6efb66c",
+    "candidates.json": "267844bfeb02838c4d014dc2539cafb0f2b29d39df7907e415921712b93cd5ca",
+    "review.json": "1ad31628f3633bbec3144af6a100129fa57f6323f95ff786a185c16b90bbb1ce",
+    "correction_manifest.json": "8fa24d6c831d28274e9874e72e34c98ae994dc34ebbad7dfb93ff0e3855d3070",
+    "finalized.json": "181554bcf004889e27b0ecbb6b62bf0148a95c8e29fb34be0e90d1d99bee9d43"
+  },
+  "v1_root": "C:\\Users\\user\\Documents\\Sentiment Analysis\\1. Data Scraping\\data\\processed\\participant_experience_v1",
+  "external_api_calls": 0,
+  "synthesis": {
+    "version": "participant_experience_v2_rt08",
+    "model": "gpt-5.6-luna",
+    "prompt_version": "participant_experience_grounded_v1",
+    "prompt_hash": "f7bdafc047e042cde16b02c6d333a0730f5669bdef8024a0cd09fca465a62436",
+    "input_artifact_hash": "928e8aa8f04b0fa0d4daea6857c6cd6f67683442c91018f932681be6baf88637",
+    "requests_hash": "c80972e196199571ff04f6b3c64857b37886e92e449ada4663c41cb1c3ce1553",
+    "request_count": 99,
+    "request_bytes": 749598,
+    "approximate_input_characters": 497581,
+    "created_at": "2026-09-19T07:23:31.782489+00:00",
+    "generation_status": "TARGETED_RT08_CORRECTION_READY",
+    "api_calls": 0,
+    "correction": {
+      "v1_request_manifest_hash": "aa785167924417955929ed204dbf6a204ce3e7bdd80495af3a1d20f5e2ab12f0",
+      "preserved_request_lines": 98,
+      "regenerated_request_lines": [
+        "training_preparation_pacing__rt08"
+      ],
+      "external_api_calls": 0
+    }
+  },
+  "generated_at": "2026-09-19T07:23:31.786448+00:00",
+  "response_hash": "not_applicable_targeted_in_session_ai_assisted_candidate"
+}

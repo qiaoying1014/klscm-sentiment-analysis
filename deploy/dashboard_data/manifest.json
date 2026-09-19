@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "validation": "passed",
+  "exported_at_utc": "2026-09-19T09:52:50.252886+00:00",
+  "validation_scope": "Original dashboard, reviewed-theme, blog, participant-experience and wordcloud loaders; full local source checks before export",
+  "sections": {
+    "dashboard": {
+      "metadata": {
+        "file": "dashboard_metadata.json",
+        "format": "json",
+        "sha256": "ee646fa0a40148f4e0926c65ef7879b51360c4a4c29f45b451d57189afae8527",
+        "bytes": 4572
+      },
+      "corpus": {
+        "file": "dashboard_corpus.json",
+        "format": "json",
+        "sha256": "5b109363d7169fd1a69764e68a00c002aba94969a8552545ad2b5570c6d301cc",
+        "bytes": 602
+      },
+      "sentiment_overall": {
+        "file": "dashboard_sentiment_overall.parquet",
+        "format": "parquet",
+        "sha256": "fffb21d920ccfa3ef51ac8fc5dfa51514ed9f776a1ce18a322b2168a0de49141",
+        "bytes": 4683
+      },
+      "aspects": {
+        "file": "dashboard_aspects.parquet",
+        "format": "parquet",
+        "sha256": "fe2d44a948a56f4476bc724b40e3dc5213bab68c504137f113c26fda32019ea0",
+        "bytes": 20491
+      },
+      "aspect_sentiment": {
+        "file": "dashboard_aspect_sentiment.parquet",
+        "format": "parquet",
+        "sha256": "3c4a61fd1d040211998042960678e7d24835e6ee4c6f78892723c2a9a5748020",
+        "bytes": 7162
+      },
+      "years": {
+        "file": "dashboard_years.parquet",
+        "format": "parquet",
+        "sha256": "1589fa43e8fb5975b2dbcf2820fe69ce33f8239527270920f6f6fdc986a0f5db",
+        "bytes": 12362
+      },
+      "year_aspect": {
+        "file": "dashboard_year_aspect.parquet",
+        "format": "parquet",
+        "sha256": "4408d60090afadebf3d9388ab255636616fb25f78a0b09f37a202777ef4bd25a",
+        "bytes": 21653
+      },
+      "year_aspect_sentiment": {
+        "file": "dashboard_year_aspect_sentiment.parquet",
+        "format": "parquet",
+        "sha256": "329542b376c3fd51b209f7adc35b26e36a2f1767db8d94bd6bde4cce51d329a2",
+        "bytes": 11722
+      },
+      "pairwise": {
+        "file": "dashboard_pairwise.parquet",
+        "format": "parquet",
+        "sha256": "ef587b785f65a16d93f1b68f42e0d146ae7b4da89062a2e040cf6c2032fda61c",
+        "bytes": 16120
+      },
+      "findings": {
+        "file": "dashboard_findings.parquet",
+        "format": "parquet",
+        "sha256": "0b1dce4f7724037f8b5956bf3907738f17146023cbfd7af830a29d31118e1133",
+        "bytes": 12127
+      },
+      "cautions": {
+        "file": "dashboard_cautions.parquet",
+        "format": "parquet",
+        "sha256": "5aebebd160a82e1acf38907be53f7d87e0a3d0659b3b8f8f504ae74d5c689c98",
+        "bytes": 3686
+      },
+      "topics": {
+        "file": "dashboard_topics.parquet",
+        "format": "parquet",
+        "sha256": "cfa89b68bf8fac054961e92af1d8d2ec79ae477fc1d0b1e59a2823c0782ac3b6",
+        "bytes": 14054
+      },
+      "topic_aspect": {
+        "file": "dashboard_topic_aspect.parquet",
+        "format": "parquet",
+        "sha256": "1b4559d2e575ac8801f68d15a28abca1314e5966f924f3e391d881344105bd30",
+        "bytes": 18456
+      },
+      "languages": {
+        "file": "dashboard_languages.parquet",
+        "format": "parquet",
+        "sha256": "591764470951b18d1aa0bd95144cf74c81d19ac453684d8f598eef89985d43dd",
+        "bytes": 10711
+      },
+      "language_aspect": {
+        "file": "dashboard_language_aspect.parquet",
+        "format": "parquet",
+        "sha256": "9bb0df4c70b77af04fc9685653a656b12b31d5d21be3175766ff98691426eb05",
+        "bytes": 14272
+      }
+    },
+    "themes": {
+      "manifest": {
+        "file": "themes_manifest.json",
+        "format": "json",
+        "sha256": "875b5743288dd09c4e0674688afcc51dc134f8fb8bfa3a0c9cf9b13d1bef7ff9",
+        "bytes": 7438
+      },
+      "taxonomy": {
+        "file": "themes_taxonomy.parquet",
+        "format": "parquet",
+        "sha256": "528dc123c64dffa3e8e39cf613a72608f167498d598cdb0790192063c9349658",
+        "bytes": 18744
+      },
+      "summary": {
+        "file": "themes_summary.parquet",
+        "format": "parquet",
+        "sha256": "0dda5fef60e6dfd466ab31a27946fd8dc6096f2e6f4c83f2150eddf9ce57bc3c",
+        "bytes": 31825
+      },
+      "sentiment": {
+        "file": "themes_sentiment.parquet",
+        "format": "parquet",
+        "sha256": "604fc8f05c01703ea9d5138446215cb79c940e2d421ad515efc1a3889a1bb4ce",
+        "bytes": 7124
+      },
+      "years": {
+        "file": "themes_years.parquet",
+        "format": "parquet",
+        "sha256": "d3853c80800a1b49102ad436f745ca00a9a6e5335950a5ca0321fad4145955af",
+        "bytes": 8533
+      },
+      "evidence": {
+        "file": "themes_evidence.parquet",
+        "format": "parquet",
+        "sha256": "4fbd3c431bad6453e36dd452640e90316063d44c63eb38323cf2eb9df0453448",
+        "bytes": 56198
+      },
+      "insufficient_support": {
+        "file": "themes_insufficient_support.parquet",
+        "format": "parquet",
+        "sha256": "495294b2fbdbe12b1e82aaae795b57a6f47f08324f601c9fdc284afecdc1725c",
+        "bytes": 8325
+      }
+    },
+    "blog": {
+      "counts": {
+        "file": "blog_counts.json",
+        "format": "json",
+        "sha256": "e618e98fb4c9f92d1107cf148bca3987c5e786939df3b6631d6ca1cbad7469f7",
+        "bytes": 152
+      },
+      "aspects": {
+        "file": "blog_aspects.parquet",
+        "format": "parquet",
+        "sha256": "e53e3e723fff6ed9251384c468a6163e57a5fe6eadef5ee70c7a0a765a555115",
+        "bytes": 6629
+      },
+      "sentiment": {
+        "file": "blog_sentiment.parquet",
+        "format": "parquet",
+        "sha256": "66037f3fc0cd609a2d515fd3a1d296fe4ac4696c63c5889161341ce24816f52b",
+        "bytes": 3719
+      },
+      "matched": {
+        "file": "blog_matched.parquet",
+        "format": "parquet",
+        "sha256": "d3c0a4de361984b50f22e8385b41ff5b00f44c0cd903029d95fe4bb6e333a6b0",
+        "bytes": 7806
+      },
+      "emergent": {
+        "file": "blog_emergent.parquet",
+        "format": "parquet",
+        "sha256": "b44d9db9e44928311324dc09a167f8d238d5fd4b29bc916dcd0da9fc940c60e0",
+        "bytes": 18159
+      },
+      "years": {
+        "file": "blog_years.parquet",
+        "format": "parquet",
+        "sha256": "db4b330d1c3e87250643e15a95befa4dd00f76102fb64e7e2df5a3935df32309",
+        "bytes": 1918
+      },
+      "languages": {
+        "file": "blog_languages.parquet",
+        "format": "parquet",
+        "sha256": "ae5035323b78c811124b1f0148f645e7749316019c20a5e561ac4bfe0d7aab7a",
+        "bytes": 1894
+      }
+    },
+    "experience": {
+      "evidence": {
+        "file": "experience_evidence.json",
+        "format": "json",
+        "sha256": "928e8aa8f04b0fa0d4daea6857c6cd6f67683442c91018f932681be6baf88637",
+        "bytes": 471773
+      },
+      "insights": {
+        "file": "experience_insights.json",
+        "format": "json",
+        "sha256": "181554bcf004889e27b0ecbb6b62bf0148a95c8e29fb34be0e90d1d99bee9d43",
+        "bytes": 296839
+      },
+      "provenance": {
+        "file": "experience_provenance.json",
+        "format": "json",
+        "sha256": "ac0b8bb9bcd64deb1b7363225b5ede9e885752fb0ea300b942d79f476f1d5d0a",
+        "bytes": 2184
+      }
+    },
+    "wordcloud": {
+      "documents": {
+        "file": "wordcloud_documents.parquet",
+        "format": "parquet",
+        "sha256": "aae0e68f3d424165938c7839ee51732ef2a2a056b018eb80b18abee9d68f20b6",
+        "bytes": 2192207
+      },
+      "mentions": {
+        "file": "wordcloud_mentions.parquet",
+        "format": "parquet",
+        "sha256": "894db5d49e4650683e0c8261add32efab0a4eca78bbafc1db052f07d7319f3c3",
+        "bytes": 3277092
+      }
+    }
+  }
+}

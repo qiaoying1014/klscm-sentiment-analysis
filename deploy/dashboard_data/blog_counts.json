@@ -1,0 +1,10 @@
+{
+  "reviews": 25,
+  "mentions": 301,
+  "chunks": 56,
+  "aspects": 20,
+  "matched": 47,
+  "reference_themes": 64,
+  "emergent": 35,
+  "singletons": 24
+}

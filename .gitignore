@@ -1,0 +1,50 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Large/generated ML artifacts
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.bin
+
+# Logs
+*.log
+
+# Local research inputs, intermediate outputs, API caches, and model downloads.
+# The explicitly exported Cloud release lives in deploy/dashboard_data/.
+/data/processed/
+/data/cache/
+/models/
+/Instagram/Raw Data/
+/Instagram/*.csv
+/Instagram/*.xlsx
+/Online Review Blog/raw-data.*
+/.local/
+/work/
+/docx_qa_pages/

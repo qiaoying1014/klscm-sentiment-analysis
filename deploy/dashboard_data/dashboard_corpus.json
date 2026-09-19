@@ -1,0 +1,15 @@
+{
+  "total_documents": 7704,
+  "mention_bearing_documents": 5316,
+  "zero_mention_documents": 2388,
+  "zero_mention_rate": 0.3099688473520249,
+  "total_mentions": 15486,
+  "mean_mentions_per_document": 2.0101246105919004,
+  "median_mentions_per_document": 1.0,
+  "mean_mentions_per_mention_bearing_document": 2.9130925507900676,
+  "median_mentions_per_mention_bearing_document": 2.0,
+  "multi_aspect_documents": 2917,
+  "multi_aspect_rate_all_documents": 0.3786344755970924,
+  "multi_aspect_rate_mention_bearing_documents": 0.5487208427389014,
+  "mean_unique_aspects_per_document": 1.5368639667705088
+}

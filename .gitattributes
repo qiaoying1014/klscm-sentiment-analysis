@@ -1,0 +1,2 @@
+# Frozen artifacts must keep their exact bytes for SHA-256 release validation.
+deploy/dashboard_data/** -text

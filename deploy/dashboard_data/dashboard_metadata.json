@@ -1,0 +1,125 @@
+{
+  "dataset_version": "absa_v1_dashboard_data_v1",
+  "created_at": "2026-08-24T08:20:41.507497+00:00",
+  "production_documents": 7704,
+  "production_mentions": 15486,
+  "years": [
+    2019,
+    2023,
+    2024,
+    2025
+  ],
+  "aspect_families": [
+    "route_course",
+    "weather_conditions",
+    "organization_operations",
+    "registration_entry",
+    "race_pack_expo",
+    "transport_access",
+    "crowd_community_atmosphere",
+    "volunteer_support",
+    "aid_stations_hydration",
+    "facilities",
+    "safety_medical",
+    "event_information",
+    "training_preparation_pacing",
+    "photography_media",
+    "race_performance",
+    "physical_experience",
+    "emotional_experience",
+    "value_cost",
+    "finisher_items",
+    "emerging_other"
+  ],
+  "aspect_display_labels": {
+    "route_course": "Route And Course",
+    "weather_conditions": "Weather Conditions",
+    "organization_operations": "Organization And Operations",
+    "registration_entry": "Registration And Entry",
+    "race_pack_expo": "Race Pack And Expo",
+    "transport_access": "Transport And Access",
+    "crowd_community_atmosphere": "Community & Atmosphere",
+    "volunteer_support": "Volunteer Support",
+    "aid_stations_hydration": "Aid Stations And Hydration",
+    "facilities": "Facilities",
+    "safety_medical": "Safety And Medical Support",
+    "event_information": "Event Information And Communication",
+    "training_preparation_pacing": "Training, Preparation & Pacing",
+    "photography_media": "Photography And Media",
+    "race_performance": "Race Performance",
+    "physical_experience": "Physical Experience",
+    "emotional_experience": "Emotional And Overall Event Experience",
+    "value_cost": "Value And Cost",
+    "finisher_items": "Medal, Merchandise, And Finisher Items",
+    "emerging_other": "Other Emerging Aspect"
+  },
+  "sentiment_labels": [
+    "positive",
+    "negative",
+    "neutral",
+    "mixed"
+  ],
+  "support_thresholds": {
+    "very_low_support": {
+      "minimum_affected_documents": 0,
+      "maximum_affected_documents": 29
+    },
+    "low_support": {
+      "minimum_affected_documents": 30,
+      "maximum_affected_documents": 99
+    },
+    "moderate_support": {
+      "minimum_affected_documents": 100,
+      "maximum_affected_documents": 499
+    },
+    "high_support": {
+      "minimum_affected_documents": 500,
+      "maximum_affected_documents": null
+    }
+  },
+  "effect_size_thresholds": {
+    "trivial": "V < 0.10",
+    "small": "0.10 <= V < 0.20",
+    "moderate": "0.20 <= V < 0.30",
+    "strong": "V >= 0.30"
+  },
+  "inferential_unit": "document",
+  "descriptive_mention_unit": "mention",
+  "proportion_representation": "numeric 0-1",
+  "model_precision": 0.513,
+  "model_recall": 0.79,
+  "development_precision_target": 0.55,
+  "development_target_met": false,
+  "production_is_validation": false,
+  "language_inference_allowed": false,
+  "topic_inference_allowed": false,
+  "document_counts_can_overlap_by_sentiment": true,
+  "inferential_eligible_aspects": [
+    "race_performance",
+    "crowd_community_atmosphere",
+    "physical_experience",
+    "emotional_experience",
+    "training_preparation_pacing",
+    "photography_media",
+    "emerging_other",
+    "route_course",
+    "organization_operations",
+    "weather_conditions",
+    "value_cost",
+    "safety_medical"
+  ],
+  "warnings": {
+    "model": "Aspect and sentiment labels are model-estimated. The selected ABSA system achieved development precision of 0.513 and recall of 0.790 and did not meet the predeclared 0.55 precision target.",
+    "statistical": "Statistical tests quantify associations in model-estimated labels and do not account for ABSA classification error.",
+    "temporal": "Cross-year comparisons should be interpreted alongside changing corpus composition and increasing extraction density across editions.",
+    "language": "Language comparisons are descriptive and should not be interpreted as evidence of cultural or linguistic differences.",
+    "topic": "Topic-level sentiment patterns are descriptive; no topic-wide inferential testing was performed."
+  },
+  "support_warnings": {
+    "very_low_support": "Very limited support; do not emphasize.",
+    "low_support": "Limited support; interpret cautiously.",
+    "moderate_support": "Moderate support.",
+    "high_support": "High corpus support."
+  },
+  "frozen_frontend_policy": "All hypothesis testing, confidence intervals, multiple-testing correction, effect sizes, and research-emphasis decisions are frozen preprocessing outputs. The eventual dashboard is a presentation/exploration layer only."
+}
