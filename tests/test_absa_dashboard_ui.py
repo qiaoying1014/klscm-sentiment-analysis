@@ -71,7 +71,7 @@ def test_weather_selection_surfaces_frozen_caution():
 def test_navigation_and_unsupported_mockup_features_are_excluded():
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
     navigation = ["Participant Experience & Organizer Insights", "Executive Overview", "Overview", "Aspect Analysis",
-                  "Topic Analysis", "Word Cloud", "Research Findings", "Cross-Source Analysis", "Methodology"]
+                  "Topic Analysis", "Word Cloud", "Methodology"]
     app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
     assert app.sidebar.radio[0].options == navigation
     assert app.sidebar.radio[0].value == "Executive Overview"
@@ -89,7 +89,7 @@ def test_executive_overview_reconciles_frozen_outputs_and_boundaries():
         assert expected in visible
     assert "Document prevalence among 7,704 analyzed posts" in visible
     assert "Share of 15,486 model-estimated aspect mentions" in visible
-    assert visible.count("Descriptive only") >= 2
+    assert "Results are descriptive" in visible
     assert "0.513" in visible and "0.790" in visible and "80 documents" in visible
     assert "precision target of 0.55 was not met" in visible
 
@@ -118,13 +118,14 @@ def test_executive_ai_summary_is_frozen_traceable_and_cautioned():
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
     for expected in [
         "AI Summary &amp; Key Insights", "Frozen research summary", "Generated from frozen analysis outputs",
-        "Race Performance: 30.4% to 46.2%", "Community &amp; Atmosphere: 18.8% to 33.0%",
-        "Physical Experience: 16.9% to 29.2%", "more positive and less negative discussion",
+        "Community &amp; Atmosphere: 18.8% to 33.0%",
+        "Physical Experience: 16.9% to 29.2%",
         "Development evidence: precision 0.513", "recall 0.790", "not causal changes",
         "changing corpus composition and increasing extraction density",
     ]:
         assert expected in visible
-    assert "The most prevalent substantive aspects were Race Performance, Community &amp; Atmosphere, and Physical Experience." in visible
+    assert "The most prevalent displayed marathon-experience aspects were" in visible
+    assert "Race Performance" not in visible
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
     assert "data.sentiment_overall.set_index" in source
     assert 'data.aspects.nlargest(3, "document_prevalence_all")' in source
@@ -151,14 +152,14 @@ def test_topic_analysis_uses_the_frozen_four_year_topic_mart():
     assert "Historical topic aggregate not shown" not in visible
 
 
-def test_detailed_research_findings_page_remains_available_after_summary_addition():
+def test_detailed_research_findings_preserved_but_hidden():
     app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
-    app.sidebar.radio[0].set_value("Research Findings").run()
-    assert not app.exception
-    visible = " ".join(item.value for item in [*app.markdown, *app.caption])
-    assert "Curated in the frozen research-findings mart" in visible
-    assert "Race-performance discussion became more prevalent across observed editions." in visible
-    assert "Training/preparation sentiment shifted toward more positive and less negative discussion." in visible
+    assert "Research Findings" not in app.sidebar.radio[0].options
+    source = Path("absa_dashboard.py").read_text(encoding="utf-8")
+    assert "def render_findings" in source
+    data = load_dashboard_data()
+    assert "race_performance" in set(data.findings.aspect)
+    assert "training_preparation_pacing" in set(data.findings.aspect)
 
 
 def test_topic_language_and_methodology_pages_show_frozen_boundaries():
@@ -183,7 +184,7 @@ def test_word_cloud_page_smoke_and_descriptive_boundaries():
     assert next(item for item in app.radio if item.label == "Cloud weighting").value == "Document Frequency"
     assert next(item for item in app.radio if item.label == "Text Source").value == "ABSA Evidence"
     assert "Filtered ABSA Evidence Cloud" in [item.value for item in app.subheader]
-    assert "Top Sentiment Expressions" in [item.value for item in app.subheader]
+    assert "Top Sentiment Expressions" not in [item.value for item in app.subheader]
 
 
 def test_full_caption_context_mode_remains_explicitly_available():
@@ -213,7 +214,7 @@ def test_executive_plotly_titles_and_theme_do_not_override_native_colors():
     app = AppTest.from_file("absa_dashboard.py", default_timeout=45).run()
     assert not app.exception
     charts = app.get("plotly_chart")
-    assert len(charts) == 5
+    assert len(charts) == 4
     for chart in charts:
         spec = json.loads(chart.proto.spec)
         layout = spec["layout"]

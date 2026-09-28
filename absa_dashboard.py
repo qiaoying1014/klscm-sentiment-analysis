@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from wordcloud import WordCloud
 
+from marathon_absa.dashboard_presentation import marathon_experience_display
 from marathon_absa.dashboard_data import DashboardData, display_label_map, load_dashboard_data
 from marathon_absa.reviewed_theme_dashboard_data import (
     ReviewedThemeDashboardData, load_reviewed_theme_dashboard_data,
@@ -192,11 +193,6 @@ def render_reviewed_themes(themes: ReviewedThemeDashboardData, aspect: str, disp
             for column, name in zip(sentiment_cols, ["positive", "negative", "mixed", "neutral"]):
                 value = sentiment.loc[name]
                 with column: st.metric(name.title(), f"{value.share_of_theme_documents:.1%}", f"{int(value.support_documents):,} documents")
-            st.markdown("**Across observed editions**")
-            years = themes.years[themes.years.reviewed_theme_id.eq(row.reviewed_theme_id)].sort_values("year")
-            year_table = years.rename(columns={"year": "Edition", "support_documents": "Supporting documents", "aspect_documents_that_year": "Aspect documents", "within_aspect_theme_prevalence": "Within-aspect prevalence"})
-            st.dataframe(year_table[["Edition", "Supporting documents", "Aspect documents", "Within-aspect prevalence"]], hide_index=True, width="stretch", column_config={"Within-aspect prevalence": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1)})
-            st.caption("Edition values are descriptive and do not represent a new inferential test.")
             st.markdown("**Representative participant evidence**")
             evidence = themes.evidence[themes.evidence.reviewed_theme_id.eq(row.reviewed_theme_id)].sort_values("mention_id")
             for index, item in enumerate(evidence.itertuples(), 1):
@@ -244,13 +240,14 @@ def compact_style(figure: go.Figure, height: int, left_margin: int = 8) -> go.Fi
 
 
 def render_executive_overview(data: DashboardData) -> None:
+    data = marathon_experience_display(data)
     labels = display_label_map(data)
     st.markdown(
         "<div class='executive-header'><div class='executive-kicker'>Frozen research synthesis</div>"
         "<div class='executive-heading-row'><div><h1>Standard Chartered Kuala Lumpur Marathon</h1>"
         "<h2>Sentiment &amp; Perception Analysis Dashboard</h2></div>"
         "<div class='executive-editions'><span>Observed editions</span><strong>2019 · 2023 · 2024 · 2025</strong></div></div>"
-        "<p>One-page research brief covering corpus scale, aspect sentiment, edition-level patterns, topics, languages and evidence quality.</p></div>",
+        "<p>One-page research brief covering corpus scale, aspect sentiment, edition-level patterns and evidence quality.</p></div>",
         unsafe_allow_html=True,
     )
     try:
@@ -333,18 +330,7 @@ def render_executive_overview(data: DashboardData) -> None:
         st.plotly_chart(compact_style(figure, 260), width="stretch", key="executive_temporal")
         st.caption("Frozen document prevalence with Wilson 95% confidence intervals")
     st.markdown("<div class='executive-section-label'>Edition signal and evidence synthesis</div>", unsafe_allow_html=True)
-    row4 = st.columns([1, 1.25], gap="small")
-    with row4[0], st.container(border=True):
-        st.markdown("<h3 class='compact-title'>Training &amp; Preparation Sentiment</h3>", unsafe_allow_html=True)
-        training = data.year_aspect[data.year_aspect.aspect.eq("training_preparation_pacing")]
-        figure = go.Figure()
-        figure.add_trace(go.Scatter(x=training.year, y=training.positive_document_share_within_aspect_year, name="Positive", mode="lines+markers", line=dict(color=SENTIMENT_COLORS["positive"], width=2.5)))
-        figure.add_trace(go.Scatter(x=training.year, y=training.negative_document_share_within_aspect_year, name="Negative", mode="lines+markers", line=dict(color=SENTIMENT_COLORS["negative"], width=2.5)))
-        figure.update_xaxes(tickmode="array", tickvals=[2019, 2023, 2024, 2025], title=None)
-        figure.update_yaxes(tickformat=".0%", range=[0, .72], title=None)
-        st.plotly_chart(compact_style(figure, 260), width="stretch", key="executive_training")
-        st.caption("Document-level positive and negative presence may overlap.")
-    with row4[1], st.container(border=True):
+    with st.container(border=True):
         sentiment_shares = data.sentiment_overall.set_index("sentiment").mention_share
         top_aspects = data.aspects.nlargest(3, "document_prevalence_all").display_label.tolist()
         insight_items = []
@@ -363,12 +349,9 @@ def render_executive_overview(data: DashboardData) -> None:
             + f"{data.corpus['total_documents']:,} analyzed posts, positive sentiment was the largest share of "
             + f"{data.corpus['total_mentions']:,} model-estimated aspect mentions ({pct(sentiment_shares['positive'])}; "
             + f"negative {pct(sentiment_shares['negative'])}, mixed {pct(sentiment_shares['mixed'])}, "
-            + f"neutral {pct(sentiment_shares['neutral'])}). The most prevalent substantive aspects were "
+            + f"neutral {pct(sentiment_shares['neutral'])}). The most prevalent displayed marathon-experience aspects were "
             + html.escape(", ".join(top_aspects[:-1]) + f", and {top_aspects[-1]}.")
             + "</p><ul class='ai-summary-insights'>" + "".join(insight_items) + "</ul>"
-            + "<p class='ai-summary-takeaway'><strong>Takeaway.</strong> Later observed editions contained more "
-            + "performance-, community-, and physical-experience-related discussion, while training and preparation "
-            + "discussion became more positive and less negative.</p>"
             + f"<div class='ai-summary-quality'>Development evidence: precision {data.metadata['model_precision']:.3f} "
             + f"&middot; recall {data.metadata['model_recall']:.3f}</div>"
             + "<p class='ai-summary-caution'>Associations in model-estimated labels, not causal changes in participant "
@@ -376,26 +359,9 @@ def render_executive_overview(data: DashboardData) -> None:
             unsafe_allow_html=True,
         )
 
-    st.markdown("<div class='executive-section-label'>Descriptive context and research scope</div>", unsafe_allow_html=True)
-    row5 = st.columns([1.15, 1, .9], gap="small")
-    with row5[0], st.container(border=True):
-        st.markdown("<h3 class='compact-title'>Topic Snapshot " + badge("Descriptive only") + "</h3>", unsafe_allow_html=True)
-        topic_ids = [1, 0, 11, 12]
-        for row in data.topics.set_index("topic_id").loc[topic_ids].itertuples():
-            st.markdown(f"<div class='snapshot-row'><span>{html.escape(row.topic_label)}</span><strong>{html.escape(labels[row.top_aspect_1])} {pct(row.top_aspect_1_document_prevalence)}</strong></div>", unsafe_allow_html=True)
-    with row5[1], st.container(border=True):
-        st.markdown("<h3 class='compact-title'>Language Snapshot " + badge("Descriptive only") + "</h3>", unsafe_allow_html=True)
-        major_languages = ["English", "Malay", "Malay/Indonesian uncertain", "Chinese", "Indonesian"]
-        language = data.languages.set_index("language").loc[major_languages]
-        for name, row in language.iterrows():
-            st.markdown(f"<div class='language-row'><span>{html.escape(name)}</span><strong>{int(row.documents):,}</strong><small>{row.mention_bearing_documents/row.documents:.1%} mention-bearing</small></div>", unsafe_allow_html=True)
-    with row5[2], st.container(border=True):
-        st.markdown("<h3 class='compact-title'>Research Quality &amp; Scope</h3>", unsafe_allow_html=True)
-        quality = [("ABSA precision", "0.513"), ("ABSA recall", "0.790"), ("Human gold", "80 documents"), ("Aspect families", "20"), ("Final topics", "32")]
-        st.markdown("<div class='quality-grid'>" + "".join(f"<div><span>{html.escape(label)}</span><strong>{html.escape(value)}</strong></div>" for label, value in quality) + "</div>", unsafe_allow_html=True)
-        st.markdown("<p class='quality-warning'>Model-estimated labels; precision target of 0.55 was not met.</p><p class='method-link'>See Methodology in the navigation for full scope and limitations.</p>", unsafe_allow_html=True)
+    st.caption("Development evidence: 80 documents; precision target of 0.55 was not met. See Methodology for full scope and limitations.")
 
-    notice("Interpret with care", "Results reflect model-estimated ABSA labels. Cross-year comparisons should be interpreted alongside changing corpus composition and increasing extraction density.", "warning")
+    notice("Interpret with care", "Results are descriptive and reflect model-estimated ABSA labels. Cross-year comparisons should be interpreted alongside changing corpus composition and increasing extraction density.", "warning")
 
 
 def render_header(data: DashboardData) -> None:
@@ -405,6 +371,7 @@ def render_header(data: DashboardData) -> None:
 
 
 def render_overview(data: DashboardData) -> None:
+    data = marathon_experience_display(data)
     render_header(data)
     section_title("01", "Research overview", "Frozen production corpus and overall model-estimated sentiment")
     selected = st.selectbox("Edition", ["All editions", 2019, 2023, 2024, 2025], key="overview_year")
@@ -449,8 +416,6 @@ def render_overview(data: DashboardData) -> None:
         major = ["race_performance", "crowd_community_atmosphere", "physical_experience", "emotional_experience", "training_preparation_pacing", "route_course", "photography_media"]
         st.plotly_chart(aspect_sentiment_chart(aspect_sentiment[aspect_sentiment.aspect.isin(major)]), width="stretch", key=f"aspect_sentiment_{selected}")
         st.caption("Denominator: model-estimated mentions within each aspect; not all posts.")
-        with st.expander("Accessible aspect sentiment table"):
-            st.dataframe(aspect_sentiment[aspect_sentiment.aspect.isin(major)][["display_label", "sentiment", "mention_count", "share_within_aspect"]], hide_index=True, width="stretch")
     section_title("03", "Principal aspect prevalence across editions", "Frozen document prevalence and Wilson 95% confidence intervals")
     with st.container(border=True):
         principal = data.aspects.loc[data.aspects.recommended_for_emphasis, "aspect"].tolist()
@@ -533,8 +498,9 @@ def render_findings(data: DashboardData) -> None:
 
 
 def render_aspect_explorer(data: DashboardData, labels: dict[str, str]) -> None:
+    data = marathon_experience_display(data)
     page_header("Twenty-family ABSA ontology", "Aspect Analysis", "Document prevalence, mention sentiment and frozen temporal evidence")
-    section_title("01", "Aspect ranking", "All 20 aspect families remain visible, including lower-support categories")
+    section_title("01", "Aspect ranking", "Marathon-experience aspects; frozen prevalence retains the full-corpus denominator")
     metric = st.radio("Ranking measure", ["Document prevalence", "Mention count"], horizontal=True, key="aspect_page_metric")
     st.plotly_chart(aspect_prevalence_chart(data.aspects, "document_prevalence_all" if metric=="Document prevalence" else "mention_count"), width="stretch")
     section_title("02", "Aspect detail", "Select an aspect to inspect its frozen descriptive and inferential record")
@@ -568,6 +534,7 @@ def render_aspect_explorer(data: DashboardData, labels: dict[str, str]) -> None:
 
 
 def render_topic_explorer(data: DashboardData) -> None:
+    data = marathon_experience_display(data)
     page_header("Descriptive analysis", "Topic Analysis", "Aspect and sentiment patterns within the frozen 32-topic taxonomy")
     notice("Descriptive only", data.metadata["warnings"]["topic"], "info")
     st.caption("Topics describe broad corpus-wide discourse, while reviewed aspect themes describe what participants discuss within a specific ABSA aspect.")
@@ -575,18 +542,15 @@ def render_topic_explorer(data: DashboardData) -> None:
     topic = st.selectbox("Final consolidated topic", topic_ids,
         format_func=lambda value: data.topics.loc[data.topics.topic_id.eq(value), "topic_label"].iloc[0])
     row = data.topics[data.topics.topic_id.eq(topic)].iloc[0]
-    cols = st.columns(3)
+    cols = st.columns(2)
     with cols[0]: metric_card("Topic documents", f"{row.document_count:,}", "Frozen substantive posts")
     with cols[1]: metric_card("Aspect mentions", f"{row.mention_count:,}", "Model-estimated mentions")
-    with cols[2]: metric_card("Leading aspect", str(row.top_aspect_1).replace("_", " ").title(), f"{row.top_aspect_1_document_prevalence:.1%} of topic posts")
     topic_aspects = data.topic_aspect[data.topic_aspect.topic_id.eq(topic)].sort_values("document_prevalence", ascending=True)
     figure = px.bar(topic_aspects, x="document_prevalence", y="aspect_display_label", orientation="h",
                     custom_data=["affected_documents", "mention_count"])
     figure.update_traces(marker_color=ACCENT, hovertemplate="%{y}<br>%{x:.1%} of topic posts<br>%{customdata[0]:,} documents<br>%{customdata[1]:,} mentions<extra></extra>")
     figure.update_xaxes(tickformat=".0%", title="Share of topic posts"); figure.update_layout(title=row.topic_label)
     st.plotly_chart(plot_style(figure, 590), width="stretch")
-    with st.expander("Accessible topic-aspect table"):
-        st.dataframe(topic_aspects, hide_index=True, width="stretch")
 
 
 def render_language_explorer(data: DashboardData) -> None:
@@ -620,7 +584,7 @@ def render_methodology(data: DashboardData) -> None:
         "Document-level inferential analysis", "Within-aspect ALTA clustering",
         "Researcher-reviewed theme taxonomy", "Dashboard"]
     st.markdown("<div class='pipeline'>"+"".join(f"<div><span>{i+1:02d}</span><strong>{html.escape(step)}</strong></div>" for i,step in enumerate(pipeline))+"</div>", unsafe_allow_html=True)
-    st.caption("Parallel long-form branch: parent-review analysis, delegated AI-assisted theme review, and descriptive cross-source comparison. Its completed results appear in Cross-Source Analysis. The statistical procedures below apply to Instagram only.")
+    st.caption("Parallel long-form branch: parent-review analysis, delegated AI-assisted theme review, and descriptive cross-source comparison. Its completed outputs are retained in the research artifacts. The statistical procedures below apply to Instagram only.")
     section_title("02", "Research basis and development evidence", "The production system was selected with a known precision limitation")
     cols = st.columns(2, gap="large")
     with cols[0]:
@@ -774,6 +738,7 @@ def render_cloud(frame: pd.DataFrame, weighting: str, palette: str, key: str) ->
 
 
 def render_word_cloud(data: DashboardData) -> None:
+    data = marathon_experience_display(data)
     page_header("Descriptive text exploration only", "Word Cloud", "Descriptive lexical patterns in frozen KLSCM social-media captions")
     notice("Interpretation boundary", "Word frequency is descriptive and can be influenced by repeated hashtags, captions, language structure, and posting style.", "info")
     documents, mentions, tokenized, evidence = get_wordcloud_sources("wordcloud_v1_config_3")
@@ -856,14 +821,6 @@ def render_word_cloud(data: DashboardData) -> None:
                 render_cloud(frequency_table(tokenized, negative_ids), weighting, "negative", "negative")
                 st.caption(f"Entire captions from {len(negative_ids):,} documents containing a matching negative ABSA mention.")
 
-    if evidence_mode:
-        st.subheader("Top Sentiment Expressions")
-        expressions = evidence_expression_table(selected_evidence).head(20).copy()
-        if len(expressions): expressions["Aspect"] = expressions.Aspect.map(labels)
-        st.dataframe(expressions, hide_index=True, width="stretch")
-        st.caption("Expressions are conservatively case-folded and whitespace-normalized for counting; displayed wording remains frozen evidence text.")
-        st.info("Sentiment is assigned to an aspect-level expression, not necessarily to every individual token. For example, ‘training’ is neutral by itself but may occur in the negative expression ‘not enough training.’")
-
     source_rows = selected_evidence if evidence_mode else tokenized[tokenized.document_id.isin(selected_ids)]
     hashtags = top_items(source_rows, set(source_rows.document_id), "hashtags", 10)
     emojis = top_items(source_rows, set(source_rows.document_id), "emojis", 10)
@@ -941,7 +898,7 @@ except (FileNotFoundError, ValueError) as exc:
 labels = display_label_map(dashboard)
 with st.sidebar:
     st.markdown("<div class='sidebar-brand'><strong>KLSCM</strong><h2>Sentiment &amp; Perception Analysis</h2><p>Social Media &amp; Long-form Reviews</p></div>",unsafe_allow_html=True)
-    visible_pages=["Participant Experience & Organizer Insights","Executive Overview","Overview","Aspect Analysis","Topic Analysis","Word Cloud","Research Findings","Cross-Source Analysis","Methodology"]
+    visible_pages=["Participant Experience & Organizer Insights","Executive Overview","Overview","Aspect Analysis","Topic Analysis","Word Cloud","Methodology"]
     page=st.radio("Research dashboard navigation",visible_pages,label_visibility="collapsed",index=1,key="dashboard_page")
     st.markdown("<div class='sidebar-context'><strong>Kuala Lumpur Standard Chartered Marathon</strong><p>Observed editions:<br>2019 · 2023 · 2024 · 2025</p></div>",unsafe_allow_html=True)
 
@@ -950,5 +907,5 @@ pages={"Participant Experience & Organizer Insights":render_participant_experien
        "Topic Analysis":lambda:render_topic_explorer(dashboard),"Language Analysis":lambda:render_language_explorer(dashboard),
        "Word Cloud":lambda:render_word_cloud(dashboard),"Research Findings":lambda:render_findings(dashboard),"Cross-Source Analysis":lambda:render_cross_source(dashboard),"Methodology":lambda:render_methodology(dashboard)}
 if page not in {"Cross-Source Analysis", "Participant Experience & Organizer Insights"}:
-    st.info("Source scope: this page presents the frozen Instagram analysis. Finalized long-form reviews are included separately under Cross-Source Analysis; source counts and sentiment are not pooled.")
+    st.info("Source scope: this page presents the frozen Instagram analysis. Finalized long-form reviews inform Participant Experience; source counts and sentiment are not pooled.")
 pages[page]()

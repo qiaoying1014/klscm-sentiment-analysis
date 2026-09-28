@@ -5,6 +5,7 @@ from pathlib import Path
 
 import streamlit as st
 
+from .dashboard_presentation import HIDDEN_DISPLAY_ASPECTS
 from .participant_experience_dashboard_data import (
     CATEGORIES, ROOT, filter_themes, load_participant_experience_dashboard_data,
 )
@@ -98,17 +99,19 @@ def render_participant_experience(root: Path = ROOT) -> None:
         st.caption(PROVENANCE)
         st.caption(package["model_limitation"])
 
+    themes = [theme for theme in themes if theme["aspect_id"] not in HIDDEN_DISPLAY_ASPECTS]
+    st.caption("Release totals above include all finalized themes; browsing below shows marathon-experience aspects only.")
     st.subheader("Explore participant experience")
     st.write("Browse finalized themes by aspect, experience classification, source coverage, or a keyword. No ranking is applied.")
     filters = st.columns(4)
     with filters[0]:
-        aspect = st.selectbox("Aspect", [None, *package["aspects"]], format_func=lambda value: "All aspects" if value is None else package["aspects"][value], key="experience_aspect")
+        aspect = st.selectbox("Aspect", [None, *[value for value in package["aspects"] if value not in HIDDEN_DISPLAY_ASPECTS]], format_func=lambda value: "All aspects" if value is None else package["aspects"][value], key="experience_aspect")
     with filters[1]:
         category = st.selectbox("Experience category", [None, *CATEGORIES], format_func=lambda value: "All categories" if value is None else value, key="experience_category")
     with filters[2]:
         coverage = st.selectbox("Source coverage", [None, *COVERAGE], format_func=lambda value: "All source coverage" if value is None else COVERAGE[value], key="experience_source")
     with filters[3]:
-        keyword = st.text_input("Search themes", placeholder="e.g. hydration, training, volunteers", key="experience_search")
+        keyword = st.text_input("Search themes", placeholder="e.g. hydration, transport, volunteers", key="experience_search")
     selected = [theme for theme in filter_themes(themes, aspect, category, coverage)
                 if _matches_keyword(theme, insights[theme["theme_id"]], keyword.strip())]
     st.caption(f"Showing {len(selected)} of {len(themes)} finalized themes.")

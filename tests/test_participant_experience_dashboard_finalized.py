@@ -49,7 +49,11 @@ def test_dashboard_page_exposes_finalized_explorer_and_methodology_note():
     app.sidebar.radio[0].set_value("Participant Experience & Organizer Insights").run(timeout=60)
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption, *app.info])
-    assert "Showing 99 of 99 finalized themes." in visible
+    from marathon_absa.dashboard_presentation import HIDDEN_DISPLAY_ASPECTS
+    themes = loader.load_participant_experience_dashboard_data()["evidence"]["themes"]
+    count = sum(t["aspect_id"] not in HIDDEN_DISPLAY_ASPECTS for t in themes)
+    assert f"Showing {count} of {count} finalized themes." in visible
+    assert next(m for m in app.metric if m.label == "Finalized themes").value == "99"
     assert PROVENANCE in visible
     assert "not participant percentages" in visible
     assert {"Aspect", "Experience category", "Source coverage", "Results page"} <= {item.label for item in app.selectbox}

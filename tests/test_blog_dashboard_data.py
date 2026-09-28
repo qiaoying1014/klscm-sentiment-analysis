@@ -33,8 +33,7 @@ def test_stale_emergent_mart_is_not_displayed(monkeypatch):
 
 
 def test_longform_page_displays_finalized_counts_and_review_provenance():
-    app=AppTest.from_file('absa_dashboard.py',default_timeout=45).run()
-    app.sidebar.radio[0].set_value('Cross-Source Analysis').run(timeout=45)
+    app=AppTest.from_string(Path('absa_dashboard.py').read_text(encoding='utf-8') + '\nrender_cross_source(dashboard)', default_timeout=45).run()
     assert not app.exception
     metrics={item.label:item.value for item in app.metric}
     assert metrics['Long-form parent reviews']=='25'
@@ -51,8 +50,7 @@ def test_longform_page_displays_finalized_counts_and_review_provenance():
 
 
 def test_blog_filters_keep_parent_denominator_and_show_scope():
-    app=AppTest.from_file('absa_dashboard.py',default_timeout=45).run()
-    app.sidebar.radio[0].set_value('Cross-Source Analysis').run(timeout=45)
+    app=AppTest.from_string(Path('absa_dashboard.py').read_text(encoding='utf-8') + '\nrender_cross_source(dashboard)', default_timeout=45).run()
     next(x for x in app.selectbox if x.key=='blog_aspect').set_value('facilities').run(timeout=45)
     assert not app.exception
     selector=next(x for x in app.selectbox if x.key=='blog_evidence')
