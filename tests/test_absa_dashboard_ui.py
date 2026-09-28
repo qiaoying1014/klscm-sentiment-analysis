@@ -53,8 +53,8 @@ def test_frontend_contains_no_statistical_or_model_inference_logic():
 def test_streamlit_mvp_smoke_and_visible_warnings():
     app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
     assert not app.exception
-    assert any("7,704" in item.value for item in app.markdown)
-    assert any("15,486" in item.value for item in app.markdown)
+    assert any("5,425" in item.value for item in app.markdown)
+    assert any("12,065" in item.value for item in app.markdown)
     assert any("model-estimated" in item.value.lower() for item in app.markdown)
     assert any("descriptive" in item.value.lower() for item in app.markdown)
 
@@ -70,8 +70,8 @@ def test_weather_selection_surfaces_frozen_caution():
 
 def test_navigation_and_unsupported_mockup_features_are_excluded():
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
-    navigation = ["Participant Experience & Organizer Insights", "Executive Overview", "Overview", "Social Media Analytics", "Aspect Analysis", "Temporal Trends",
-                  "Topic Analysis", "Language Analysis", "Word Cloud", "Research Findings", "Cross-Source Analysis", "Methodology"]
+    navigation = ["Participant Experience & Organizer Insights", "Executive Overview", "Overview", "Aspect Analysis",
+                  "Topic Analysis", "Word Cloud", "Research Findings", "Cross-Source Analysis", "Methodology"]
     app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
     assert app.sidebar.radio[0].options == navigation
     assert app.sidebar.radio[0].value == "Executive Overview"
@@ -85,11 +85,11 @@ def test_executive_overview_reconciles_frozen_outputs_and_boundaries():
     app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
-    for expected in ["7,704", "5,316", "15,486", "64.9%", "30.3%", "2,917"]:
+    for expected in ["5,425", "3,899", "12,065", "65.7%", "29.5%"]:
         assert expected in visible
-    assert "Document prevalence among 7,704 analyzed posts" in visible
-    assert "Share of 15,486 model-estimated aspect mentions" in visible
-    assert visible.count("Descriptive only") >= 2
+    assert "Document prevalence among 5,425 analyzed posts" in visible
+    assert "Share of 12,065 model-estimated aspect mentions" in visible
+    assert "Descriptive context and research scope" in visible
     assert "0.513" in visible and "0.790" in visible and "80 documents" in visible
     assert "precision target of 0.55 was not met" in visible
 
@@ -99,18 +99,17 @@ def test_sidebar_reopen_control_and_executive_metric_icons_remain_visible():
     assert 'initial_sidebar_state="expanded"' in source
     assert '[data-testid="stToolbar"]{visibility:hidden}' not in source
     assert '[data-testid="stExpandSidebarButton"]{visibility:visible!important}' in source
-    for icon in ["📚", "🎯", "🧩", "👍", "👎", "🔀"]:
+    for icon in ["📚", "🎯", "🧩", "👍", "👎"]:
         assert icon in source
 
 
-def test_executive_overview_uses_only_frozen_finding_topic_and_language_marts():
+def test_executive_overview_uses_active_scope_and_preserves_frozen_findings():
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
     assert "for _, finding in data.findings.iterrows()" in source
-    assert "data.topics.set_index" in source
-    assert "data.languages.set_index" in source
+    assert "ACTIVE_YEARS = (2023, 2024, 2025)" in source
     assert 'nlargest(6, "document_prevalence_all")' in source
     executive_source = source.split("def render_executive_overview", 1)[1].split("def render_header", 1)[0].lower()
-    for unsupported in ["interview", "geospatial", "gis", "race category"]:
+    for unsupported in ["interview", "geospatial", "gis", "race category", "2019_value"]:
         assert unsupported not in executive_source
 
 
@@ -120,8 +119,8 @@ def test_executive_ai_summary_is_frozen_traceable_and_cautioned():
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
     for expected in [
         "AI Summary &amp; Key Insights", "Frozen research summary", "Generated from frozen analysis outputs",
-        "Race Performance: 30.4% to 46.2%", "Community &amp; Atmosphere: 18.8% to 33.0%",
-        "Physical Experience: 16.9% to 29.2%", "more positive and less negative discussion",
+        "Race Performance: 38.3% to 46.2%", "Community &amp; Atmosphere: 25.2% to 33.0%",
+        "Physical Experience: 21.5% to 29.2%", "more positive and less negative discussion",
         "Development evidence: precision 0.513", "recall 0.790", "not causal changes",
         "changing corpus composition and increasing extraction density",
     ]:
@@ -133,6 +132,17 @@ def test_executive_ai_summary_is_frozen_traceable_and_cautioned():
     assert 'data.metadata["warnings"]["temporal"]' in source
     for forbidden in ["openai", "anthropic", "requests.post", "generate_content", "chat.completions"]:
         assert forbidden not in source.lower()
+
+
+def test_active_scope_hides_pages_and_excludes_2019_from_user_surface():
+    source = Path("absa_dashboard.py").read_text(encoding="utf-8")
+    assert "ACTIVE_YEARS = (2023, 2024, 2025)" in source
+    app = AppTest.from_file("absa_dashboard.py", default_timeout=60).run()
+    hidden = {"Temporal Trends", "Social Media Analytics", "Language Analysis"}
+    assert not hidden.intersection(app.sidebar.radio[0].options)
+    visible = " ".join(item.value for item in [*app.markdown, *app.caption])
+    assert "2019" not in visible
+    assert "2023" in visible and "2025" in visible
 
 
 def test_detailed_research_findings_page_remains_available_after_summary_addition():
@@ -149,8 +159,6 @@ def test_topic_language_and_methodology_pages_show_frozen_boundaries():
     app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
     app.sidebar.radio[0].set_value("Topic Analysis").run()
     assert any("descriptive" in item.value.lower() for item in app.markdown)
-    app.sidebar.radio[0].set_value("Language Analysis").run()
-    assert any("descriptive" in item.value.lower() for item in app.markdown)
     app.sidebar.radio[0].set_value("Methodology").run()
     visible = " ".join(item.value for item in app.markdown)
     metric_values = {item.label: item.value for item in app.metric}
@@ -163,7 +171,7 @@ def test_word_cloud_page_smoke_and_descriptive_boundaries():
     app.sidebar.radio[0].set_value("Word Cloud").run(timeout=45)
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
-    assert "15,486" in visible and "5,316" in visible
+    assert "12,065" in visible and "3,899" in visible
     assert "Descriptive text exploration only" in visible
     assert "statistical significance" in visible
     assert next(item for item in app.radio if item.label == "Cloud weighting").value == "Document Frequency"
@@ -247,4 +255,3 @@ def test_topic_explorer_remains_available_with_construct_clarification():
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
     assert "broad corpus-wide discourse" in visible
-    assert "reviewed aspect themes" in visible
