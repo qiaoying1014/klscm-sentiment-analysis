@@ -183,13 +183,34 @@ def test_full_caption_context_mode_remains_explicitly_available():
     assert "Individual words are not necessarily sentiment-bearing" in visible
 
 
-def test_light_surface_contrast_and_plotly_text_are_explicit():
+def test_theme_tokens_follow_streamlit_effective_color_scheme():
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
-    assert 'font=dict(family="Arial, sans-serif", color=INK)' in source
-    assert 'tickfont=dict(color=INK)' in source
-    assert '[data-testid="stAppViewContainer"] p' in source
-    assert 'color:#475569' in source
-    assert '[data-testid="stSidebar"] *{color:#dce7f8}' in source
+    assert "--ink:light-dark(#13243a,#e6edf7)" in source
+    assert "--paper:light-dark(#f3f6fa,#0e1522)" in source
+    assert "--navy:light-dark(#edf2f8,#0b1930)" in source
+    assert 'prefers-color-scheme' not in source  # native System mode owns resolution
+    assert '[data-testid="stSidebar"][aria-expanded="true"] [data-testid="stSidebarCollapseButton"]{visibility:visible!important}' in source
+    assert ':focus-visible{outline:2px solid var(--blue)' in source
+    assert '[data-testid="stToolbarActions"],[data-testid="stStatusWidget"]{visibility:hidden}' not in source
+
+
+def test_executive_plotly_titles_and_theme_do_not_override_native_colors():
+    import json
+    app = AppTest.from_file("absa_dashboard.py", default_timeout=45).run()
+    assert not app.exception
+    charts = app.get("plotly_chart")
+    assert len(charts) == 5
+    for chart in charts:
+        spec = json.loads(chart.proto.spec)
+        layout = spec["layout"]
+        assert layout["title"]["text"] == ""
+        assert "undefined" not in json.dumps(spec)
+        assert "color" not in layout.get("font", {})
+        assert "color" not in layout.get("legend", {}).get("font", {})
+        for axis in ("xaxis", "yaxis"):
+            assert "gridcolor" not in layout.get(axis, {})
+            assert "color" not in layout.get(axis, {}).get("tickfont", {})
+        assert chart.proto.theme == "streamlit"
 
 
 def test_aspect_explorer_displays_only_finalized_reviewed_themes():
