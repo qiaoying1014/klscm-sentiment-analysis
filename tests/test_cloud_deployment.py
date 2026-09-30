@@ -47,4 +47,4 @@ print("PASS simplified wordcloud", flush=True)
     result = subprocess.run([sys.executable, "-c", script], cwd=tmp_path,
                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=240)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert result.stdout.count("PASS") == 13
+    assert result.stdout.count("PASS") == 6

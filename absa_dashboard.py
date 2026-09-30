@@ -27,6 +27,13 @@ ACCENT = "#2563eb"
 HIDDEN_TOPIC_ANALYSIS_IDS = frozenset({38})  # KLSCM 2019 Race Weekend and Pre-Race Activities
 ASPECT_ANALYSIS_YEARS = (2023, 2024, 2025)
 DISPLAYED_EDITIONS_TEXT = "2023 \u00b7 2024 \u00b7 2025"
+VISIBLE_DASHBOARD_PAGES = (
+    "Executive Overview",
+    "Topic Analysis",
+    "Aspect Analysis",
+    "Participant Experience & Organizer Insights",
+    "Word Cloud",
+)
 HIDDEN_ASPECT_ANALYSIS_IDS = frozenset({
     "race_performance",
     "emotional_experience",
@@ -824,7 +831,7 @@ except (FileNotFoundError, ValueError) as exc:
 labels = display_label_map(dashboard)
 with st.sidebar:
     st.markdown("<div class='sidebar-brand'><strong>KLSCM</strong><h2>Sentiment &amp; Perception Analysis</h2><p>Social Media &amp; Long-form Reviews</p></div>",unsafe_allow_html=True)
-    page=st.radio("Research dashboard navigation",["Participant Experience & Organizer Insights","Executive Overview","Overview","Social Media Analytics","Aspect Analysis","Temporal Trends","Topic Analysis","Language Analysis","Word Cloud","Research Findings","Cross-Source Analysis","Methodology"],label_visibility="collapsed",index=1,key="dashboard_page")
+    page=st.radio("Research dashboard navigation", VISIBLE_DASHBOARD_PAGES, label_visibility="collapsed", index=0, key="dashboard_page")
     editions = DISPLAYED_EDITIONS_TEXT
     st.markdown(f"<div class='sidebar-context'><strong>Kuala Lumpur Standard Chartered Marathon</strong><p>Observed editions:<br>{editions}</p></div>",unsafe_allow_html=True)
 

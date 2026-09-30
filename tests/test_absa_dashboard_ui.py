@@ -70,11 +70,11 @@ def test_weather_selection_surfaces_frozen_caution():
 
 def test_navigation_and_unsupported_mockup_features_are_excluded():
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
-    navigation = ["Participant Experience & Organizer Insights", "Executive Overview", "Overview", "Social Media Analytics", "Aspect Analysis", "Temporal Trends",
-                  "Topic Analysis", "Language Analysis", "Word Cloud", "Research Findings", "Cross-Source Analysis", "Methodology"]
-    app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
+    navigation = ["Executive Overview", "Topic Analysis", "Aspect Analysis", "Participant Experience & Organizer Insights", "Word Cloud"]
+    app = AppTest.from_file("deploy/streamlit_app.py", default_timeout=45).run()
     assert app.sidebar.radio[0].options == navigation
     assert app.sidebar.radio[0].value == "Executive Overview"
+    assert "VISIBLE_DASHBOARD_PAGES" in source
     lower = source.lower()
     for unsupported in ["interview insights", "geospatial analysis", "gis map", "race category", "total interviewees", "locations detected"]:
         assert unsupported not in lower
