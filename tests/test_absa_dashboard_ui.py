@@ -258,9 +258,9 @@ def test_topic_analysis_is_a_read_only_overview_of_frozen_topic_prevalence():
     spec = json.loads(charts[0].proto.spec)
     trace = spec["data"][0]
     layout = spec["layout"]
-    assert len(trace["y"]) == 32
+    assert len(trace["y"]) == 31
     assert trace["x"]["dtype"] == "f8"
-    assert len(base64.b64decode(trace["x"]["bdata"])) // 8 == 32
+    assert len(base64.b64decode(trace["x"]["bdata"])) // 8 == 31
     assert trace["type"] == "bar" and trace["orientation"] == "h"
     assert layout["xaxis"]["title"]["text"] == "Share of analysed feedback (%)"
     assert layout["yaxis"]["title"]["text"] == "Topic"
@@ -271,9 +271,11 @@ def test_topic_analysis_is_a_read_only_overview_of_frozen_topic_prevalence():
     old_dropdown_ids = frozen_topics.sort_values("topic_id").topic_id.tolist()
     chart_source = frozen_topics.set_index("topic_id").loc[old_dropdown_ids].reset_index()
     assert chart_source.topic_id.tolist() == old_dropdown_ids
-    assert set(base64.b64decode(trace["customdata"]["bdata"])) == set(old_dropdown_ids)
+    assert set(base64.b64decode(trace["customdata"]["bdata"])) == set(old_dropdown_ids) - {38}
+    assert "KLSCM 2019 Race Weekend and Pre-Race Activities" not in trace["y"]
     expected_labels = (
-        chart_source.assign(feedback_share=chart_source.document_count / 7704)
+        chart_source.loc[chart_source.topic_id.ne(38)]
+        .assign(feedback_share=lambda frame: frame.document_count / 7704)
         .sort_values("feedback_share", ascending=False)
         .topic_label.tolist()
     )
@@ -281,5 +283,6 @@ def test_topic_analysis_is_a_read_only_overview_of_frozen_topic_prevalence():
 
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
     assert "topics = topic_dropdown_population(data)" in source
+    assert "HIDDEN_TOPIC_ANALYSIS_IDS" in source
     assert "Final consolidated topic" not in source
     assert "topic_aspects =" not in source

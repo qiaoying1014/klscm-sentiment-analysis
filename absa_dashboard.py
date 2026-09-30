@@ -24,6 +24,7 @@ from marathon_absa.wordcloud_data import (
 
 SENTIMENT_COLORS = {"positive": "#159a69", "negative": "#d84a4a", "mixed": "#7557d9", "neutral": "#d59b22"}
 ACCENT = "#2563eb"
+HIDDEN_TOPIC_ANALYSIS_IDS = frozenset({38})  # KLSCM 2019 Race Weekend and Pre-Race Activities
 
 st.set_page_config(page_title="KLSCM ABSA Research Dashboard", page_icon="K", layout="wide",
                    initial_sidebar_state="expanded")
@@ -581,6 +582,7 @@ def render_topic_explorer(data: DashboardData) -> None:
     )
     st.subheader("Topics Discussed in Participant Feedback")
     topics = topic_dropdown_population(data).loc[:, ["topic_id", "topic_label", "document_count"]].copy()
+    topics = topics.loc[~topics.topic_id.isin(HIDDEN_TOPIC_ANALYSIS_IDS)]
     topics["feedback_share"] = topics["document_count"] / data.corpus["total_documents"]
     topics = topics.sort_values("feedback_share", ascending=False)
     figure = px.bar(
