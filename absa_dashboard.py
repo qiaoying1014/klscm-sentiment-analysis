@@ -25,6 +25,7 @@ from marathon_absa.wordcloud_data import (
 SENTIMENT_COLORS = {"positive": "#159a69", "negative": "#d84a4a", "mixed": "#7557d9", "neutral": "#d59b22"}
 ACCENT = "#2563eb"
 HIDDEN_TOPIC_ANALYSIS_IDS = frozenset({38})  # KLSCM 2019 Race Weekend and Pre-Race Activities
+ASPECT_ANALYSIS_YEARS = (2023, 2024, 2025)
 
 st.set_page_config(page_title="KLSCM ABSA Research Dashboard", page_icon="K", layout="wide",
                    initial_sidebar_state="expanded")
@@ -110,8 +111,18 @@ def sentiment_chart(frame: pd.DataFrame, title: str, share_column: str, count_co
     return plot_style(figure, 250)
 
 
-def aspect_prevalence_chart(frame: pd.DataFrame, metric: str) -> go.Figure:
-    shown = frame.sort_values(metric, ascending=True).copy()
+def aspect_prevalence_chart(frame: pd.DataFrame, metric: str, *, aspect_analysis: bool = False) -> go.Figure:
+    shown = frame.sort_values(metric, ascending=not aspect_analysis).copy()
+    if aspect_analysis:
+        figure = px.bar(shown, x=metric, y="display_label", orientation="h")
+        figure.update_traces(
+            marker_color=ACCENT,
+            hovertemplate="%{y}<br>Share of analysed posts: %{x:.1%}<extra></extra>",
+        )
+        figure.update_xaxes(tickformat=".0%", title="Share of analysed posts (%)")
+        figure.update_yaxes(title="Aspect", automargin=True)
+        figure.update_layout(title="", showlegend=False)
+        return plot_style(figure, 650)
     shown["support"] = shown.support_class.map(support_text)
     if metric == "document_prevalence_all":
         figure = px.bar(shown, x=metric, y="display_label", orientation="h", color="recommended_for_emphasis",
@@ -146,19 +157,19 @@ def reviewed_theme_prevalence_chart(frame: pd.DataFrame) -> go.Figure:
     shown = frame.sort_values("support_documents", ascending=True)
     figure = px.bar(
         shown, x="support_documents", y="reviewed_theme_label", orientation="h",
-        custom_data=["share_of_aspect_documents", "support_mentions"],
+        custom_data=["share_of_aspect_documents"],
     )
     figure.update_traces(
         marker_color=ACCENT,
-        hovertemplate="%{y}<br>%{x:,} unique documents<br>%{customdata[0]:.1%} of aspect-bearing documents<br>%{customdata[1]:,} mentions<extra></extra>",
+        hovertemplate="%{y}<br>%{x:,} unique documents<br>%{customdata[0]:.1%} of aspect-bearing documents<extra></extra>",
     )
     figure.update_xaxes(title="Unique supporting documents", rangemode="tozero")
     figure.update_yaxes(title=None, automargin=True)
     return plot_style(figure, max(300, 58 * len(shown) + 90))
 
 
-def render_reviewed_themes(themes: ReviewedThemeDashboardData, aspect: str, display_label: str) -> None:
-    section_title("03", "What participants are talking about", "Finalized researcher-reviewed discussion themes within the selected ABSA aspect")
+def render_reviewed_themes(themes: ReviewedThemeDashboardData, aspect: str) -> None:
+    section_title("03", "What participants are talking about", "")
     insufficient = themes.insufficient_support[themes.insufficient_support.aspect.eq(aspect)]
     if not insufficient.empty:
         row = insufficient.iloc[0]
@@ -168,38 +179,50 @@ def render_reviewed_themes(themes: ReviewedThemeDashboardData, aspect: str, disp
             "info",
         )
         return
-    selected = themes.summary[themes.summary.aspect.eq(aspect)].sort_values("support_documents", ascending=False)
+    year_counts = themes.years[
+        themes.years.aspect.eq(aspect) & themes.years.year.isin(ASPECT_ANALYSIS_YEARS)
+    ]
+    display_counts = (
+        year_counts.groupby("reviewed_theme_id", as_index=False)
+        .agg(
+            support_documents=("support_documents", "sum"),
+            aspect_documents=("aspect_documents_that_year", "sum"),
+        )
+    )
+    display_counts["share_of_aspect_documents"] = (
+        display_counts.support_documents / display_counts.aspect_documents
+    )
+    selected = (
+        themes.summary[themes.summary.aspect.eq(aspect)]
+        .drop(columns=["support_documents", "share_of_aspect_documents"])
+        .merge(display_counts.drop(columns="aspect_documents"), on="reviewed_theme_id", how="inner")
+        .sort_values("support_documents", ascending=False)
+    )
     if selected.empty:
         notice("Reviewed-theme data unavailable", "The finalized reviewed-theme package contains no displayable taxonomy for this aspect.", "warning")
         return
-    st.caption("Themes are ordered by unique-document support, not by managerial importance.")
     st.plotly_chart(reviewed_theme_prevalence_chart(selected), width="stretch", key=f"reviewed_theme_overview_{aspect}")
-    with st.expander("How were these discussion themes identified?"):
-        st.markdown(
-            "Discussion themes were derived downstream from frozen mention-level ABSA evidence, embedded locally and clustered separately within each aspect. The 101 machine-induced clusters were then reviewed, renamed, merged or excluded by the researcher, producing 64 finalized discussion themes. Document-level prevalence is primary; evidence uses exact grounded ABSA spans. These displays are descriptive and introduce no new inferential tests."
-        )
-        st.warning("Reviewed discussion themes remain downstream of model-estimated ABSA assignments and therefore inherit uncertainty from the upstream classifier (development precision 0.513; recall 0.790). Researcher review did not correct every possible upstream classification error.")
-        st.caption("BERTopic topics describe broad corpus-wide discourse; ABSA aspects identify evaluated marathon-experience elements; reviewed ALTA themes describe what is discussed within a selected aspect.")
     for row in selected.itertuples():
         heading = f"{row.reviewed_theme_label} · {int(row.support_documents):,} documents · {row.share_of_aspect_documents:.1%} within aspect"
         with st.expander(heading):
-            cols = st.columns(3)
+            cols = st.columns(2)
             with cols[0]: metric_card("Supporting documents", f"{int(row.support_documents):,}", "Unique document presence")
-            with cols[1]: metric_card("Within aspect", f"{row.share_of_aspect_documents:.1%}", f"of {display_label} documents")
-            with cols[2]: metric_card("Supporting mentions", f"{int(row.support_mentions):,}", "Secondary descriptive count")
-            st.markdown("**Document-level sentiment composition**")
-            sentiment = themes.sentiment[themes.sentiment.reviewed_theme_id.eq(row.reviewed_theme_id)].set_index("document_sentiment")
-            sentiment_cols = st.columns(4)
-            for column, name in zip(sentiment_cols, ["positive", "negative", "mixed", "neutral"]):
-                value = sentiment.loc[name]
-                with column: st.metric(name.title(), f"{value.share_of_theme_documents:.1%}", f"{int(value.support_documents):,} documents")
+            with cols[1]: metric_card("Within aspect", f"{row.share_of_aspect_documents:.1%}", "of 2023–2025 aspect documents")
             st.markdown("**Across observed editions**")
-            years = themes.years[themes.years.reviewed_theme_id.eq(row.reviewed_theme_id)].sort_values("year")
+            years = themes.years[
+                themes.years.reviewed_theme_id.eq(row.reviewed_theme_id)
+                & themes.years.year.isin(ASPECT_ANALYSIS_YEARS)
+            ].sort_values("year")
             year_table = years.rename(columns={"year": "Edition", "support_documents": "Supporting documents", "aspect_documents_that_year": "Aspect documents", "within_aspect_theme_prevalence": "Within-aspect prevalence"})
             st.dataframe(year_table[["Edition", "Supporting documents", "Aspect documents", "Within-aspect prevalence"]], hide_index=True, width="stretch", column_config={"Within-aspect prevalence": st.column_config.ProgressColumn(format="percent", min_value=0, max_value=1)})
             st.caption("Edition values are descriptive and do not represent a new inferential test.")
             st.markdown("**Representative participant evidence**")
-            evidence = themes.evidence[themes.evidence.reviewed_theme_id.eq(row.reviewed_theme_id)].sort_values("mention_id")
+            evidence = themes.evidence[
+                themes.evidence.reviewed_theme_id.eq(row.reviewed_theme_id)
+                & themes.evidence.event_year.isin(ASPECT_ANALYSIS_YEARS)
+            ].sort_values("mention_id")
+            if evidence.empty:
+                st.caption("No representative evidence from the displayed editions is available for this theme.")
             for index, item in enumerate(evidence.itertuples(), 1):
                 st.markdown(f"**Evidence {index} · {int(item.event_year)} · {html.escape(str(item.sentiment).title())}**")
                 st.markdown(f"> {html.escape(str(item.evidence_text))}")
@@ -227,7 +250,7 @@ def trend_chart(frame: pd.DataFrame, selected_aspects: list[str], labels: dict[s
             customdata=group[["affected_documents", "total_documents_year"]],
             hovertemplate="%{x}: %{y:.1%}<br>%{customdata[0]:,} / %{customdata[1]:,} posts<extra></extra>"))
     figure.update_layout(title="Document prevalence across observed KLSCM editions", hovermode="x unified")
-    figure.update_xaxes(tickmode="array", tickvals=[2019, 2023, 2024, 2025], title="Event edition")
+    figure.update_xaxes(tickmode="array", tickvals=sorted(shown.year.unique()), title="Event edition")
     figure.update_yaxes(tickformat=".0%", rangemode="tozero", title="Share of analyzed posts")
     return plot_style(figure, 460)
 
@@ -534,14 +557,24 @@ def render_findings(data: DashboardData) -> None:
 
 
 def render_aspect_explorer(data: DashboardData, labels: dict[str, str]) -> None:
-    page_header("Twenty-family ABSA ontology", "Aspect Analysis", "Document prevalence, mention sentiment and frozen temporal evidence")
-    section_title("01", "Aspect ranking", "All 20 aspect families remain visible, including lower-support categories")
-    metric = st.radio("Ranking measure", ["Document prevalence", "Mention count"], horizontal=True, key="aspect_page_metric")
-    st.plotly_chart(aspect_prevalence_chart(data.aspects, "document_prevalence_all" if metric=="Document prevalence" else "mention_count"), width="stretch")
-    section_title("02", "Aspect detail", "Select an aspect to inspect its frozen descriptive and inferential record")
-    aspect = st.selectbox("Aspect", data.aspects.aspect.tolist(), format_func=lambda value: labels[value], key="aspect_explorer")
-    overview = data.aspects[data.aspects.aspect.eq(aspect)].iloc[0]
-    st.markdown(f"<div class='section-heading'><div><h2>{html.escape(overview.display_label)}</h2><p>{overview.document_prevalence_all:.1%} of analyzed posts contained this model-estimated aspect.</p></div><div>{badge(support_text(overview.support_class))} {badge(effect_text(overview.effect_category), 'accent' if overview.recommended_for_emphasis else 'default')}</div></div>", unsafe_allow_html=True)
+    page_header("Twenty-family ABSA ontology", "Aspect Analysis", "Aspect prevalence and sentiment across the 2023–2025 analysed feedback.")
+    aspect_years = data.year_aspect[data.year_aspect.year.isin(ASPECT_ANALYSIS_YEARS)]
+    aspect_display = (
+        aspect_years.groupby(["aspect", "display_label"], as_index=False)
+        .agg(
+            affected_document_count=("affected_documents", "sum"),
+            total_documents=("total_documents_year", "sum"),
+            mention_count=("mention_count", "sum"),
+        )
+    )
+    aspect_display["document_prevalence_all"] = aspect_display.affected_document_count / aspect_display.total_documents
+    aspect_display["mean_mentions_per_affected_document"] = aspect_display.mention_count / aspect_display.affected_document_count
+    section_title("01", "Aspect ranking", "Document prevalence across the displayed editions")
+    st.plotly_chart(aspect_prevalence_chart(aspect_display, "document_prevalence_all", aspect_analysis=True), width="stretch")
+    section_title("02", "Aspect detail", "Select an aspect to inspect its 2023–2025 descriptive record")
+    aspect = st.selectbox("Aspect", aspect_display.aspect.tolist(), format_func=lambda value: labels[value], key="aspect_explorer")
+    overview = aspect_display[aspect_display.aspect.eq(aspect)].iloc[0]
+    st.markdown(f"<div class='section-heading'><div><h2>{html.escape(overview.display_label)}</h2><p>{overview.document_prevalence_all:.1%} of 2023–2025 analysed posts contained this model-estimated aspect.</p></div></div>", unsafe_allow_html=True)
     cols = st.columns(3)
     with cols[0]: metric_card("Affected posts", f"{overview.affected_document_count:,}", f"{overview.document_prevalence_all:.1%} prevalence")
     with cols[1]: metric_card("Aspect mentions", f"{overview.mention_count:,}", "Model-estimated propositions")
@@ -553,19 +586,21 @@ def render_aspect_explorer(data: DashboardData, labels: dict[str, str]) -> None:
         caution = data.cautions[data.cautions.item.eq("photography_media")].iloc[0]
         notice("Descriptive finding", caution.reason, "info")
     left, right = st.columns([.8, 1.2], gap="large")
-    sentiment = data.aspect_sentiment[data.aspect_sentiment.aspect.eq(aspect)]
+    sentiment = (
+        data.year_aspect_sentiment[
+            data.year_aspect_sentiment.aspect.eq(aspect)
+            & data.year_aspect_sentiment.year.isin(ASPECT_ANALYSIS_YEARS)
+        ]
+        .groupby(["aspect", "display_label", "sentiment"], as_index=False)
+        .agg(mention_count=("mention_count", "sum"))
+    )
+    sentiment["share_within_aspect"] = sentiment.mention_count / sentiment.mention_count.sum()
     with left:
         st.plotly_chart(sentiment_chart(sentiment.rename(columns={"share_within_aspect": "share"}), "Sentiment within aspect", "share", "mention_count"), width="stretch")
         st.caption("Denominator: model-estimated mentions within this aspect.")
     with right:
-        st.plotly_chart(trend_chart(data.year_aspect, [aspect], labels), width="stretch")
-    stats = data.year_aspect[data.year_aspect.aspect.eq(aspect)][["year", "affected_documents", "total_documents_year", "document_prevalence", "document_prevalence_ci_lower", "document_prevalence_ci_upper"]]
-    with st.expander("Year estimates and frozen pairwise comparisons"):
-        st.dataframe(stats, hide_index=True, width="stretch")
-        pairs = data.pairwise[data.pairwise.aspect.eq(aspect)]
-        if pairs.empty: st.caption("No frozen pairwise results are available for this aspect/outcome.")
-        else: st.dataframe(pairs, hide_index=True, width="stretch")
-    render_reviewed_themes(get_reviewed_theme_data(), aspect, overview.display_label)
+        st.plotly_chart(trend_chart(aspect_years, [aspect], labels), width="stretch")
+    render_reviewed_themes(get_reviewed_theme_data(), aspect)
 
 
 def topic_dropdown_population(data: DashboardData) -> pd.DataFrame:
@@ -954,7 +989,8 @@ labels = display_label_map(dashboard)
 with st.sidebar:
     st.markdown("<div class='sidebar-brand'><strong>KLSCM</strong><h2>Sentiment &amp; Perception Analysis</h2><p>Social Media &amp; Long-form Reviews</p></div>",unsafe_allow_html=True)
     page=st.radio("Research dashboard navigation",["Participant Experience & Organizer Insights","Executive Overview","Overview","Social Media Analytics","Aspect Analysis","Temporal Trends","Topic Analysis","Language Analysis","Word Cloud","Research Findings","Cross-Source Analysis","Methodology"],label_visibility="collapsed",index=1,key="dashboard_page")
-    st.markdown("<div class='sidebar-context'><strong>Kuala Lumpur Standard Chartered Marathon</strong><p>Observed editions:<br>2019 · 2023 · 2024 · 2025</p></div>",unsafe_allow_html=True)
+    editions = "2023 · 2024 · 2025" if page == "Aspect Analysis" else "2019 · 2023 · 2024 · 2025"
+    st.markdown(f"<div class='sidebar-context'><strong>Kuala Lumpur Standard Chartered Marathon</strong><p>Observed editions:<br>{editions}</p></div>",unsafe_allow_html=True)
 
 pages={"Participant Experience & Organizer Insights":render_participant_experience,"Executive Overview":lambda:render_executive_overview(dashboard),"Overview":lambda:render_overview(dashboard),"Social Media Analytics":lambda:render_social_media(dashboard),
        "Aspect Analysis":lambda:render_aspect_explorer(dashboard,labels),"Temporal Trends":lambda:render_temporal(dashboard,labels),

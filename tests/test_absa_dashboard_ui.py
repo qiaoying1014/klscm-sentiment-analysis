@@ -213,7 +213,9 @@ def test_executive_plotly_titles_and_theme_do_not_override_native_colors():
         assert chart.proto.theme == "streamlit"
 
 
-def test_aspect_explorer_displays_only_finalized_reviewed_themes():
+def test_aspect_analysis_uses_2023_to_2025_display_data_and_simplified_themes():
+    import json
+
     app = AppTest.from_file("absa_dashboard.py", default_timeout=45).run()
     app.sidebar.radio[0].set_value("Aspect Analysis").run(timeout=45)
     selector = next(item for item in app.selectbox if item.label == "Aspect")
@@ -221,12 +223,31 @@ def test_aspect_explorer_displays_only_finalized_reviewed_themes():
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
     assert "What participants are talking about" in visible
-    assert "Themes are ordered by unique-document support" in visible
+    assert "2019" not in visible
+    assert "Document prevalence, mention sentiment and frozen temporal evidence" not in visible
+    assert "All 20 aspect families remain visible, including lower-support categories" not in visible
+    assert "Finalized researcher-reviewed discussion themes within the selected ABSA aspect" not in visible
+    assert "Themes are ordered by unique-document support" not in visible
     assert "Researcher perceptions and participant interview propositions have not yet been developed" in visible
     assert any("within aspect" in item.label for item in app.expander)
+    assert not any(item.label == "Ranking measure" for item in app.radio)
+    assert not any("Year estimates and frozen pairwise comparisons" in item.label for item in app.expander)
+    assert not any("How were these discussion themes identified?" in item.label for item in app.expander)
+
+    charts = app.get("plotly_chart")
+    ranking_spec = json.loads(charts[0].proto.spec)
+    ranking_trace = ranking_spec["data"][0]
+    assert ranking_spec["layout"]["xaxis"]["title"]["text"] == "Share of analysed posts (%)"
+    assert ranking_spec["layout"]["yaxis"]["title"]["text"] == "Aspect"
+    assert "support" not in ranking_trace["hovertemplate"].lower()
+    assert "effect" not in ranking_trace["hovertemplate"].lower()
+
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
     assert "load_reviewed_theme_dashboard_data" in source
     assert "theme_summary.parquet" not in source and "provisional_label" not in source
+    explorer_source = source.split("def render_aspect_explorer", 1)[1].split("def topic_dropdown_population", 1)[0]
+    assert "data.pairwise" not in explorer_source
+    assert "ASPECT_ANALYSIS_YEARS" in explorer_source
 
 
 def test_insufficient_support_aspect_has_clear_nonempty_state():
