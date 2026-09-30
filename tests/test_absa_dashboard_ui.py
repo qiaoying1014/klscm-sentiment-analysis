@@ -159,29 +159,25 @@ def test_topic_language_and_methodology_pages_show_frozen_boundaries():
 
 
 def test_word_cloud_page_smoke_and_descriptive_boundaries():
-    app = AppTest.from_file("absa_dashboard.py", default_timeout=45).run()
+    app = AppTest.from_file("deploy/streamlit_app.py", default_timeout=45).run()
     app.sidebar.radio[0].set_value("Word Cloud").run(timeout=45)
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
-    assert "15,486" in visible and "5,316" in visible
-    assert "Descriptive text exploration only" in visible
-    assert "statistical significance" in visible
-    assert next(item for item in app.radio if item.label == "Cloud weighting").value == "Document Frequency"
-    assert next(item for item in app.radio if item.label == "Text Source").value == "ABSA Evidence"
-    assert "Filtered ABSA Evidence Cloud" in [item.value for item in app.subheader]
-    assert "Top Sentiment Expressions" in [item.value for item in app.subheader]
+    assert "The word cloud highlights frequently occurring expressions" in visible
+    assert len(app.image) == 1
+    assert not app.selectbox
+    assert not any(item.label in {"Cloud weighting", "Text Source"} for item in app.radio)
+    assert "Top Sentiment Expressions" not in visible
+    assert "Expressions are conservatively case-folded" not in visible
+    assert "Only exact frozen evidence spans" not in visible
+    assert "matching frozen mention rows have no evidence text" not in visible
 
-
-def test_full_caption_context_mode_remains_explicitly_available():
-    app = AppTest.from_file("absa_dashboard.py", default_timeout=45).run()
-    app.sidebar.radio[0].set_value("Word Cloud").run(timeout=45)
-    source = next(item for item in app.radio if item.label == "Text Source")
-    source.set_value("Full Caption Context").run(timeout=45)
-    assert not app.exception
-    visible = " ".join(item.value for item in [*app.markdown, *app.caption])
-    assert "Filtered Caption Context" in [item.value for item in app.subheader]
-    assert "Individual words are not necessarily sentiment-bearing" in visible
-
+    source = Path("absa_dashboard.py").read_text(encoding="utf-8")
+    explorer_source = source.split("def render_word_cloud", 1)[1].split('st.markdown("""', 1)[0]
+    assert "overall_participant_experience_evidence" in explorer_source
+    assert "evidence_frequency_table" in explorer_source
+    assert "filter_evidence_mentions" not in explorer_source
+    assert "2019" not in explorer_source
 
 def test_theme_tokens_follow_streamlit_effective_color_scheme():
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")

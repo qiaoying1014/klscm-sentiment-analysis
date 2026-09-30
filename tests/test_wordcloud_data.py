@@ -12,6 +12,8 @@ from marathon_absa.wordcloud_data import (
     frequency_table,
     load_wordcloud_sources,
     normalize_and_tokenize,
+    overall_participant_experience_evidence,
+    PARTICIPANT_EXPERIENCE_ASPECT_IDS,
     tokenize_documents,
     tokenize_evidence_mentions,
 )
@@ -55,6 +57,17 @@ def test_evidence_sentiment_filters_use_only_exact_frozen_evidence_rows():
     assert negative.evidence_text.tolist() == evidence.loc[evidence.sentiment.eq("negative"), "evidence_text"].tolist()
     exact = filter_evidence_mentions(evidence, aspect="physical_experience", sentiment="negative")
     assert set(zip(exact.aspect, exact.sentiment)) == {("physical_experience", "negative")}
+
+
+def test_overall_wordcloud_scope_excludes_2019_and_hidden_aspects():
+    _, mentions = load_wordcloud_sources()
+    selected = overall_participant_experience_evidence(tokenize_evidence_mentions(mentions))
+    assert set(selected.event_year) == {2023, 2024, 2025}
+    assert set(selected.aspect) == PARTICIPANT_EXPERIENCE_ASPECT_IDS
+    assert not set(selected.aspect) & {
+        "race_performance", "emotional_experience", "training_preparation_pacing", "emerging_other",
+    }
+    assert not selected.empty
 
 
 def test_evidence_tokenization_preserves_negation_and_multilingual_colloquial_text():

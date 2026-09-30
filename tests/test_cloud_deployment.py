@@ -40,9 +40,9 @@ for page in app.sidebar.radio[0].options:
     assert not app.error, (page, [item.value for item in app.error])
     print("PASS", page, flush=True)
 app.sidebar.radio[0].set_value("Word Cloud").run()
-app.radio(key="wc_source").set_value("Full Caption Context").run()
 assert not app.exception and not app.error
-print("PASS caption-context wordcloud", flush=True)
+assert len(app.image) == 1
+print("PASS simplified wordcloud", flush=True)
 '''
     result = subprocess.run([sys.executable, "-c", script], cwd=tmp_path,
                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=240)

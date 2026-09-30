@@ -18,8 +18,8 @@ from marathon_absa.reviewed_theme_dashboard_data import (
 from marathon_absa.participant_experience_dashboard_data import ROOT as PARTICIPANT_EXPERIENCE_ROOT
 from marathon_absa.participant_experience_page import _load_release, render_participant_experience
 from marathon_absa.wordcloud_data import (
-    evidence_expression_table, evidence_frequency_table, filter_document_ids, filter_evidence_mentions,
-    frequency_table, load_wordcloud_sources, tokenize_documents, tokenize_evidence_mentions, top_items,
+    evidence_frequency_table, load_wordcloud_sources,
+    overall_participant_experience_evidence, tokenize_evidence_mentions,
 )
 
 SENTIMENT_COLORS = {"positive": "#159a69", "negative": "#d84a4a", "mixed": "#7557d9", "neutral": "#d59b22"}
@@ -710,9 +710,9 @@ def render_methodology(data: DashboardData) -> None:
 
 
 @st.cache_data(show_spinner="Preparing frozen caption and evidence tokens...")
-def get_wordcloud_sources(config_version: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    documents, mentions = load_wordcloud_sources()
-    return documents, mentions, tokenize_documents(documents), tokenize_evidence_mentions(mentions)
+def get_wordcloud_sources(config_version: str) -> pd.DataFrame:
+    _, mentions = load_wordcloud_sources()
+    return tokenize_evidence_mentions(mentions)
 
 
 def _wordcloud_font() -> str | None:
@@ -823,9 +823,8 @@ def render_cross_source(data: DashboardData) -> None:
     st.warning("Blog collection provenance remains incompletely documented. The inherited ABSA development precision was approximately 0.513 and recall 0.790. Theme review does not correct upstream ABSA classification error.")
 
 
-def render_cloud(frame: pd.DataFrame, weighting: str, palette: str, key: str) -> None:
-    column = "document_count" if weighting == "Document Frequency" else "count"
-    frequencies = tuple((row.token, int(getattr(row, column))) for row in frame.head(120).itertuples())
+def render_cloud(frame: pd.DataFrame, palette: str) -> None:
+    frequencies = tuple((row.token, int(row.document_count)) for row in frame.head(120).itertuples())
     if not frequencies:
         st.info("No tokens meet the minimum document-frequency threshold for this selection.")
         return
@@ -833,109 +832,15 @@ def render_cloud(frame: pd.DataFrame, weighting: str, palette: str, key: str) ->
 
 
 def render_word_cloud(data: DashboardData) -> None:
-    page_header("Descriptive text exploration only", "Word Cloud", "Descriptive lexical patterns in frozen KLSCM social-media captions")
-    notice("Interpretation boundary", "Word frequency is descriptive and can be influenced by repeated hashtags, captions, language structure, and posting style.", "info")
-    documents, mentions, tokenized, evidence = get_wordcloud_sources("wordcloud_v1_config_3")
-    labels = display_label_map(data)
-    text_source = st.radio("Text Source", ["ABSA Evidence", "Full Caption Context"], horizontal=True, key="wc_source")
-    filters = st.columns(5)
-    with filters[0]: year = st.selectbox("Year", ["All", 2019, 2023, 2024, 2025], key="wc_year")
-    with filters[1]: aspect = st.selectbox("Aspect", ["All", *data.aspects.aspect.tolist()], format_func=lambda value: "All" if value == "All" else labels[value], key="wc_aspect")
-    with filters[2]: sentiment = st.selectbox("Sentiment", ["All", "positive", "negative", "mixed", "neutral"], format_func=str.title, key="wc_sentiment")
-    with filters[3]: topic = st.selectbox("Final Topic", ["All", *sorted(documents.final_consolidated_topic_label.unique())], key="wc_topic")
-    with filters[4]: language = st.selectbox("Language", ["All", *sorted(documents.primary_language.unique())], key="wc_language")
-    weighting = st.radio("Cloud weighting", ["Document Frequency", "Raw Frequency"], horizontal=True, key="wc_weighting")
-
-    evidence_mode = text_source == "ABSA Evidence"
-    if evidence_mode:
-        selected_evidence = filter_evidence_mentions(evidence, year, aspect, sentiment, topic, language)
-        selected_ids = set(selected_evidence.document_id)
-        frequencies = evidence_frequency_table(selected_evidence)
-        nonempty_evidence = selected_evidence.evidence_text.str.strip().ne("")
-        summary = st.columns(4)
-        with summary[0]: metric_card("Matching mentions", f"{len(selected_evidence):,}", "Frozen ABSA evidence rows")
-        with summary[1]: metric_card("Unique documents", f"{selected_evidence.document_id.nunique():,}", "Documents contributing evidence")
-        with summary[2]: metric_card("Unique evidence spans", f"{selected_evidence.loc[nonempty_evidence, 'evidence_text'].nunique():,}", "Non-empty exact frozen evidence text")
-        with summary[3]: metric_card("Unique tokens", f"{len(frequencies):,}", "Minimum document frequency of two")
-        main_title = "Filtered ABSA Evidence Cloud"
-        context_copy = ("Only exact frozen evidence spans from matching ABSA mention rows are tokenized. "
-                        "Sentiment belongs to the aspect-level expression, not necessarily to every individual token.")
-        missing_evidence = int((~nonempty_evidence).sum())
-    else:
-        selected_ids = filter_document_ids(documents, mentions, year, aspect, sentiment, topic, language)
-        selected_evidence = pd.DataFrame()
-        frequencies = frequency_table(tokenized, selected_ids)
-        summary = st.columns(2)
-        with summary[0]: metric_card("Matching documents", f"{len(selected_ids):,}", "Entire captions after mention-based filtering")
-        with summary[1]: metric_card("Unique tokens", f"{len(frequencies):,}", "Minimum document frequency of two")
-        main_title = "Filtered Caption Context"
-        context_copy = ("Caption-context clouds show vocabulary from entire posts containing matching ABSA mentions. "
-                        "Individual words are not necessarily sentiment-bearing.")
-    st.caption(context_copy)
-    if evidence_mode and missing_evidence:
-        st.caption(f"{missing_evidence:,} matching frozen mention rows have no evidence text and contribute no cloud tokens or expressions.")
-
-    main, table = st.columns([1.55, 1], gap="large")
-    with main, st.container(border=True):
-        st.subheader(main_title)
-        render_cloud(frequencies, weighting, "overall", "filtered")
-        st.caption("Word size uses unique matching documents containing the token by default.")
-    with table, st.container(border=True):
-        st.subheader("Top Terms")
-        top = frequencies.head(25).copy()
-        top.insert(0, "Rank", range(1, len(top) + 1))
-        top["Document Share"] = top.document_count / max(len(selected_ids), 1)
-        top = top.rename(columns={"token": "Term", "document_count": "Document Count", "count": "Raw Frequency", "evidence_count": "Evidence Count"})
-        columns = ["Rank", "Term", "Document Count", "Document Share"] + (["Evidence Count"] if evidence_mode else []) + ["Raw Frequency"]
-        st.dataframe(top[columns], hide_index=True, width="stretch",
-                     column_config={"Document Share": st.column_config.NumberColumn(format="%.1%%")})
-
-    if sentiment == "All":
-        comparison = st.columns(2, gap="large")
-        if evidence_mode:
-            positive_rows = filter_evidence_mentions(evidence, year, aspect, "positive", topic, language)
-            negative_rows = filter_evidence_mentions(evidence, year, aspect, "negative", topic, language)
-            with comparison[0], st.container(border=True):
-                st.subheader("Positive Sentiment Expressions")
-                render_cloud(evidence_frequency_table(positive_rows), weighting, "positive", "positive")
-                st.caption(f"{len(positive_rows):,} exact positive evidence spans across {positive_rows.document_id.nunique():,} documents.")
-            with comparison[1], st.container(border=True):
-                st.subheader("Negative Sentiment Expressions")
-                render_cloud(evidence_frequency_table(negative_rows), weighting, "negative", "negative")
-                st.caption(f"{len(negative_rows):,} exact negative evidence spans across {negative_rows.document_id.nunique():,} documents.")
-        else:
-            positive_ids = filter_document_ids(documents, mentions, year, aspect, "positive", topic, language)
-            negative_ids = filter_document_ids(documents, mentions, year, aspect, "negative", topic, language)
-            with comparison[0], st.container(border=True):
-                st.subheader("Positive-Containing Caption Context")
-                render_cloud(frequency_table(tokenized, positive_ids), weighting, "positive", "positive")
-                st.caption(f"Entire captions from {len(positive_ids):,} documents containing a matching positive ABSA mention.")
-            with comparison[1], st.container(border=True):
-                st.subheader("Negative-Containing Caption Context")
-                render_cloud(frequency_table(tokenized, negative_ids), weighting, "negative", "negative")
-                st.caption(f"Entire captions from {len(negative_ids):,} documents containing a matching negative ABSA mention.")
-
-    if evidence_mode:
-        st.subheader("Top Sentiment Expressions")
-        expressions = evidence_expression_table(selected_evidence).head(20).copy()
-        if len(expressions): expressions["Aspect"] = expressions.Aspect.map(labels)
-        st.dataframe(expressions, hide_index=True, width="stretch")
-        st.caption("Expressions are conservatively case-folded and whitespace-normalized for counting; displayed wording remains frozen evidence text.")
-        st.info("Sentiment is assigned to an aspect-level expression, not necessarily to every individual token. For example, ‘training’ is neutral by itself but may occur in the negative expression ‘not enough training.’")
-
-    source_rows = selected_evidence if evidence_mode else tokenized[tokenized.document_id.isin(selected_ids)]
-    hashtags = top_items(source_rows, set(source_rows.document_id), "hashtags", 10)
-    emojis = top_items(source_rows, set(source_rows.document_id), "emojis", 10)
-    if hashtags or emojis:
-        extras = st.columns(2)
-        with extras[0]:
-            st.markdown("**Meaningful hashtags**")
-            st.caption(" · ".join(f"#{tag} ({count:,})" for tag, count in hashtags) or "None after boilerplate removal")
-        with extras[1]:
-            st.markdown("**Top emojis**")
-            st.caption(" · ".join(f"{emoji} ({count:,})" for emoji, count in emojis) or "None")
-    notice("Descriptive warning", "Word clouds summarize lexical frequency in the selected social-media captions. Word size reflects document frequency and should not be interpreted as sentiment strength, statistical significance, or aspect prevalence.", "warning")
-
+    page_header(
+        "",
+        "Word Cloud",
+        "The word cloud highlights frequently occurring expressions across participant feedback, with larger words representing greater prominence.",
+    )
+    evidence = get_wordcloud_sources("wordcloud_v1_config_3")
+    selected_evidence = overall_participant_experience_evidence(evidence)
+    frequencies = evidence_frequency_table(selected_evidence)
+    render_cloud(frequencies, "overall")
 
 st.markdown("""
 <style>

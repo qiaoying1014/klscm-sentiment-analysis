@@ -14,6 +14,14 @@ CONTEXTUAL_PATH = Path("data/processed/topic_discovery_v1/final_taxonomy_v1/fina
 OUTLIER_PATH = Path("data/processed/topic_discovery_v1/final_taxonomy_v1/final_outlier_corpus_v1.csv")
 EXPECTED_DOCUMENTS = 7704
 TOKENIZATION_CONFIG_VERSION = "wordcloud_v1_config_2"
+PARTICIPANT_EXPERIENCE_ASPECT_IDS = frozenset({
+    "crowd_community_atmosphere", "physical_experience", "photography_media",
+    "route_course", "organization_operations", "weather_conditions", "value_cost",
+    "safety_medical", "volunteer_support", "finisher_items", "registration_entry",
+    "aid_stations_hydration", "facilities", "transport_access", "race_pack_expo",
+    "event_information",
+})
+WORD_CLOUD_DISPLAY_YEARS = frozenset({2023, 2024, 2025})
 
 GENERIC_STOPWORDS = {
     "a", "an", "and", "are", "as", "at", "be", "been", "but", "by", "for", "from", "had", "has", "have",
@@ -166,6 +174,14 @@ def filter_evidence_mentions(
     if topic != "All": selected = selected[selected.final_topic_name.eq(topic)]
     if language != "All": selected = selected[selected.primary_language.eq(language)]
     return selected.copy()
+
+
+def overall_participant_experience_evidence(evidence: pd.DataFrame) -> pd.DataFrame:
+    """Return the fixed Word Cloud presentation population from frozen evidence."""
+    return evidence.loc[
+        evidence.event_year.isin(WORD_CLOUD_DISPLAY_YEARS)
+        & evidence.aspect.isin(PARTICIPANT_EXPERIENCE_ASPECT_IDS)
+    ].copy()
 
 
 def evidence_frequency_table(evidence: pd.DataFrame, minimum_document_frequency: int = 2) -> pd.DataFrame:
