@@ -567,6 +567,12 @@ def render_aspect_explorer(data: DashboardData, labels: dict[str, str]) -> None:
     render_reviewed_themes(get_reviewed_theme_data(), aspect, overview.display_label)
 
 
+def topic_dropdown_population(data: DashboardData) -> pd.DataFrame:
+    """Return the exact frozen topic population formerly offered by the dropdown."""
+    topic_ids = data.topics.sort_values("topic_id").topic_id.tolist()
+    return data.topics.set_index("topic_id").loc[topic_ids].reset_index()
+
+
 def render_topic_explorer(data: DashboardData) -> None:
     page_header(
         "",
@@ -574,10 +580,16 @@ def render_topic_explorer(data: DashboardData) -> None:
         "Topic analysis identifies recurring areas of discussion within participant feedback, providing an overview of what participants commonly discussed across the analysed marathon editions.",
     )
     st.subheader("Topics Discussed in Participant Feedback")
-    topics = data.topics.loc[:, ["topic_label", "document_count"]].copy()
+    topics = topic_dropdown_population(data).loc[:, ["topic_id", "topic_label", "document_count"]].copy()
     topics["feedback_share"] = topics["document_count"] / data.corpus["total_documents"]
-    topics = topics.sort_values("feedback_share", ascending=True)
-    figure = px.bar(topics, x="feedback_share", y="topic_label", orientation="h")
+    topics = topics.sort_values("feedback_share", ascending=False)
+    figure = px.bar(
+        topics,
+        x="feedback_share",
+        y="topic_label",
+        orientation="h",
+        custom_data=["topic_id"],
+    )
     figure.update_traces(
         marker_color=ACCENT,
         hovertemplate="%{y}<br>Share of analysed feedback: %{x:.1%}<extra></extra>",
