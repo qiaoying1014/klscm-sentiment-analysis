@@ -17,8 +17,9 @@ from marathon_absa.reviewed_theme_dashboard_data import (
 )
 from marathon_absa.participant_experience_page import render_participant_experience
 from marathon_absa.wordcloud_data import (
-    evidence_frequency_table, load_wordcloud_sources,
-    overall_participant_experience_evidence, tokenize_evidence_mentions,
+    PARTICIPANT_EXPERIENCE_ASPECT_IDS, evidence_frequency_table,
+    load_wordcloud_sources, overall_participant_experience_evidence,
+    tokenize_evidence_mentions,
 )
 
 SENTIMENT_COLORS = {"positive": "#159a69", "negative": "#d84a4a", "mixed": "#7557d9", "neutral": "#d59b22"}
@@ -298,7 +299,9 @@ def render_executive_overview(data: DashboardData) -> None:
         ("🔀", "Multi-Aspect Posts", f"{corpus['multi_aspect_documents']:,}", f"{corpus['multi_aspect_rate_all_documents']:.1%} of posts", "mixed"),
     ]
     st.markdown("<div class='executive-section-label'>Research at a glance</div>", unsafe_allow_html=True)
-    for metric_row in (kpis[:3], kpis[3:]):
+    for row_number, metric_row in enumerate((kpis[:3], kpis[3:])):
+        if row_number:
+            st.markdown("<div class='executive-kpi-row-gap'></div>", unsafe_allow_html=True)
         for column, values in zip(st.columns(len(metric_row), gap="small"), metric_row):
             with column:
                 executive_metric_card(*values)
@@ -322,7 +325,8 @@ def render_executive_overview(data: DashboardData) -> None:
         st.markdown("<h3 class='compact-title'>Top Discussed Aspects</h3>", unsafe_allow_html=True)
         compact_labels = {"Emotional And Overall Event Experience": "Emotional Experience",
                           "Training, Preparation & Pacing": "Training & Preparation"}
-        top = data.aspects.nlargest(6, "document_prevalence_all").sort_values("document_prevalence_all").copy()
+        eligible_aspects = data.aspects[data.aspects.aspect.isin(PARTICIPANT_EXPERIENCE_ASPECT_IDS)]
+        top = eligible_aspects.nlargest(6, "document_prevalence_all").sort_values("document_prevalence_all").copy()
         top["compact_label"] = top.display_label.replace(compact_labels)
         figure = px.bar(top, x="document_prevalence_all", y="compact_label", orientation="h", text="document_prevalence_all",
                         custom_data=["affected_document_count"])
@@ -332,11 +336,10 @@ def render_executive_overview(data: DashboardData) -> None:
         figure.update_yaxes(title=None, tickfont=dict(size=9, color=None))
         st.plotly_chart(compact_style(figure, 250, 118), width="stretch", key="executive_aspects")
         st.caption("Document prevalence among 7,704 analyzed posts")
-    st.markdown("<div class='executive-section-label'>Aspect composition and principal trends</div>", unsafe_allow_html=True)
-    row3 = st.columns([1.1, 1], gap="small")
-    with row3[0], st.container(border=True):
+    st.markdown("<div class='executive-section-label'>Aspect composition</div>", unsafe_allow_html=True)
+    with st.container(border=True):
         st.markdown("<h3 class='compact-title'>Aspect-Based Sentiment</h3>", unsafe_allow_html=True)
-        aspects = data.aspects.nlargest(5, "document_prevalence_all").aspect.tolist()
+        aspects = eligible_aspects.nlargest(5, "document_prevalence_all").aspect.tolist()
         shown = data.aspect_sentiment[data.aspect_sentiment.aspect.isin(aspects)].copy()
         shown["display_label"] = shown.display_label.replace(compact_labels)
         figure = aspect_sentiment_chart(shown)
@@ -344,35 +347,6 @@ def render_executive_overview(data: DashboardData) -> None:
         st.plotly_chart(compact_style(figure, 250, 118), width="stretch", key="executive_aspect_sentiment")
         st.caption("Share of model-estimated mentions within each aspect")
 
-    with row3[1], st.container(border=True):
-        st.markdown("<h3 class='compact-title'>Principal Aspect Prevalence</h3>", unsafe_allow_html=True)
-        principal = data.aspects.loc[data.aspects.recommended_for_emphasis, "aspect"].tolist()
-        figure = trend_chart(
-            data.year_aspect[data.year_aspect.year.isin(ASPECT_ANALYSIS_YEARS)],
-            principal,
-            labels,
-        )
-        figure.update_yaxes(title=None); figure.update_xaxes(title=None)
-        st.plotly_chart(compact_style(figure, 260), width="stretch", key="executive_temporal")
-        st.caption("Frozen document prevalence with Wilson 95% confidence intervals")
-    st.markdown("<div class='executive-section-label'>Descriptive context and research scope</div>", unsafe_allow_html=True)
-    row5 = st.columns([1.15, 1, .9], gap="small")
-    with row5[0], st.container(border=True):
-        st.markdown("<h3 class='compact-title'>Topic Snapshot " + badge("Descriptive only") + "</h3>", unsafe_allow_html=True)
-        topic_ids = [1, 0, 11, 12]
-        for row in data.topics.set_index("topic_id").loc[topic_ids].itertuples():
-            st.markdown(f"<div class='snapshot-row'><span>{html.escape(row.topic_label)}</span><strong>{html.escape(labels[row.top_aspect_1])} {pct(row.top_aspect_1_document_prevalence)}</strong></div>", unsafe_allow_html=True)
-    with row5[1], st.container(border=True):
-        st.markdown("<h3 class='compact-title'>Language Snapshot " + badge("Descriptive only") + "</h3>", unsafe_allow_html=True)
-        major_languages = ["English", "Malay", "Malay/Indonesian uncertain", "Chinese", "Indonesian"]
-        language = data.languages.set_index("language").loc[major_languages]
-        for name, row in language.iterrows():
-            st.markdown(f"<div class='language-row'><span>{html.escape(name)}</span><strong>{int(row.documents):,}</strong><small>{row.mention_bearing_documents/row.documents:.1%} mention-bearing</small></div>", unsafe_allow_html=True)
-    with row5[2], st.container(border=True):
-        st.markdown("<h3 class='compact-title'>Research Quality &amp; Scope</h3>", unsafe_allow_html=True)
-        quality = [("ABSA precision", "0.513"), ("ABSA recall", "0.790"), ("Human gold", "80 documents"), ("Aspect families", "20"), ("Final topics", "32")]
-        st.markdown("<div class='quality-grid'>" + "".join(f"<div><span>{html.escape(label)}</span><strong>{html.escape(value)}</strong></div>" for label, value in quality) + "</div>", unsafe_allow_html=True)
-        st.markdown("<p class='quality-warning'>Model-estimated labels; precision target of 0.55 was not met.</p><p class='method-link'>See Methodology in the navigation for full scope and limitations.</p>", unsafe_allow_html=True)
 
     notice("Interpret with care", "Results reflect model-estimated ABSA labels. Cross-year comparisons should be interpreted alongside changing corpus composition and increasing extraction density.", "warning")
 
@@ -823,7 +797,7 @@ h1,h2,h3{color:var(--ink);letter-spacing:-.025em}.page-title{font-size:clamp(2re
 .pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:.55rem}.pipeline>div{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:.75rem;min-height:68px}.pipeline span{display:block;font-size:.62rem;color:var(--blue);font-weight:800}.pipeline strong{font-size:.78rem;color:var(--ink)}
 .method-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem}.method-grid>div{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:.8rem}.method-grid small{display:block;color:var(--muted);font-size:.65rem}.method-grid strong{display:block;color:var(--ink);font-size:.82rem;margin-top:.25rem}
 .executive-header{margin:0 0 .85rem;padding:1.05rem 1.15rem;background:linear-gradient(120deg,var(--card) 0%,var(--paper) 100%);border:1px solid var(--line);border-left:5px solid var(--blue);border-radius:8px;box-shadow:0 5px 18px rgba(25,50,85,.045)}.executive-kicker{color:var(--blue);font-size:.62rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.executive-heading-row{display:flex;align-items:flex-end;justify-content:space-between;gap:1.5rem}.executive-header h1{font-size:1.72rem;margin:.2rem 0 0;line-height:1.08}.executive-header h2{font-size:.94rem;margin:.25rem 0;color:var(--muted);letter-spacing:0}.executive-header p{font-size:.76rem;color:var(--muted);margin:.55rem 0 0;max-width:850px}.executive-editions{flex:0 0 auto;text-align:right;background:var(--info);border:1px solid var(--line);border-radius:6px;padding:.55rem .7rem}.executive-editions span{display:block;color:var(--muted);font-size:.58rem;font-weight:750;text-transform:uppercase;letter-spacing:.05em}.executive-editions strong{display:block;color:var(--blue);font-size:.72rem;margin-top:.18rem}.executive-section-label{margin:.95rem 0 .42rem;color:var(--muted);font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
-.executive-metric{display:flex;gap:.8rem;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.78rem .85rem;min-height:94px;box-shadow:0 3px 12px rgba(25,50,85,.04)}.metric-icon{display:grid;place-items:center;flex:0 0 38px;height:38px;border-radius:8px;background:var(--info);color:var(--blue);font-size:1.08rem;font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif}.executive-metric-positive .metric-icon{background:#e7f7f0}.executive-metric-negative .metric-icon{background:#fdecec}.executive-metric-mixed .metric-icon{background:#f0edff}.executive-metric p{margin:0;color:var(--muted);font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.035em}.executive-metric strong{display:block;color:var(--ink);font-size:1.55rem;line-height:1.05;margin:.25rem 0 .18rem;letter-spacing:-.035em}.executive-metric small{display:block;color:var(--muted);font-size:.65rem;line-height:1.2}
+.executive-kpi-row-gap{height:.65rem}.executive-metric{display:flex;gap:.8rem;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.78rem .85rem;min-height:94px;box-shadow:0 3px 12px rgba(25,50,85,.04)}.metric-icon{display:grid;place-items:center;flex:0 0 38px;height:38px;border-radius:8px;background:var(--info);color:var(--blue);font-size:1.08rem;font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif}.executive-metric-positive .metric-icon{background:#e7f7f0}.executive-metric-negative .metric-icon{background:#fdecec}.executive-metric-mixed .metric-icon{background:#f0edff}.executive-metric p{margin:0;color:var(--muted);font-size:.63rem;font-weight:800;text-transform:uppercase;letter-spacing:.035em}.executive-metric strong{display:block;color:var(--ink);font-size:1.55rem;line-height:1.05;margin:.25rem 0 .18rem;letter-spacing:-.035em}.executive-metric small{display:block;color:var(--muted);font-size:.65rem;line-height:1.2}
 h3.compact-title{font-size:.88rem!important;margin:0 0 .15rem!important;letter-spacing:-.01em}.ai-summary{padding:.05rem 0}.ai-summary-heading{display:flex;align-items:center;justify-content:space-between;gap:.45rem}.ai-summary-heading h3{font-size:.88rem!important;margin:0!important;letter-spacing:-.01em}.ai-summary-heading .badge{margin:0;white-space:nowrap}.ai-summary-source{font-size:.58rem;color:var(--muted);margin:.18rem 0 .42rem}.ai-summary-overall,.ai-summary-takeaway{font-size:.65rem;line-height:1.38;margin:.35rem 0;color:var(--muted)!important}.ai-summary-insights{margin:.35rem 0;padding-left:1rem}.ai-summary-insights li{font-size:.63rem;line-height:1.35;color:var(--muted);margin:.16rem 0}.ai-summary-takeaway{background:var(--info);border-left:3px solid var(--blue);padding:.42rem .48rem}.ai-summary-quality{font-size:.61rem;font-weight:750;color:var(--blue);margin:.4rem 0 .28rem}.ai-summary-caution{font-size:.58rem;line-height:1.35;color:var(--warning-text)!important;background:var(--warning);padding:.38rem .44rem;margin:.25rem 0 0}.snapshot-row{padding:.46rem 0;border-bottom:1px solid var(--line)}.snapshot-row:last-child{border-bottom:0}.snapshot-row span{display:block;color:var(--muted);font-size:.67rem;line-height:1.25}.snapshot-row strong{display:block;color:var(--ink);font-size:.7rem;margin-top:.16rem}.language-row{display:grid;grid-template-columns:1fr auto;gap:.12rem .5rem;padding:.42rem 0;border-bottom:1px solid var(--line)}.language-row span{font-size:.7rem;color:var(--muted)}.language-row strong{font-size:.72rem;color:var(--ink)}.language-row small{grid-column:1/-1;color:var(--muted);font-size:.61rem}.quality-grid{display:grid;grid-template-columns:1fr 1fr;gap:.42rem}.quality-grid>div{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:.45rem}.quality-grid span{display:block;color:var(--muted);font-size:.58rem}.quality-grid strong{display:block;color:var(--ink);font-size:.77rem;margin-top:.12rem}.quality-warning{font-size:.65rem;color:var(--warning-text);background:var(--warning);border-left:3px solid #d59b22;padding:.48rem;margin:.55rem 0 .35rem}.method-link{font-size:.62rem;color:var(--muted);margin:.2rem 0}
 @media(max-width:900px){.pipeline,.method-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.block-container{padding:1rem .8rem}.section-heading{display:block}.metric-card{min-height:100px;margin-bottom:.25rem}.executive-metric{min-height:86px;margin-bottom:.2rem}.executive-heading-row{display:block}.executive-editions{margin-top:.7rem;text-align:left;width:max-content}.executive-header h1{font-size:1.28rem}.page-title{font-size:2rem!important}.pipeline,.method-grid{grid-template-columns:1fr}.section-label{margin-top:1.25rem}}
