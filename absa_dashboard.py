@@ -26,6 +26,12 @@ SENTIMENT_COLORS = {"positive": "#159a69", "negative": "#d84a4a", "mixed": "#755
 ACCENT = "#2563eb"
 HIDDEN_TOPIC_ANALYSIS_IDS = frozenset({38})  # KLSCM 2019 Race Weekend and Pre-Race Activities
 ASPECT_ANALYSIS_YEARS = (2023, 2024, 2025)
+HIDDEN_ASPECT_ANALYSIS_IDS = frozenset({
+    "race_performance",
+    "emotional_experience",
+    "training_preparation_pacing",
+    "emerging_other",
+})
 
 st.set_page_config(page_title="KLSCM ABSA Research Dashboard", page_icon="K", layout="wide",
                    initial_sidebar_state="expanded")
@@ -112,7 +118,9 @@ def sentiment_chart(frame: pd.DataFrame, title: str, share_column: str, count_co
 
 
 def aspect_prevalence_chart(frame: pd.DataFrame, metric: str, *, aspect_analysis: bool = False) -> go.Figure:
-    shown = frame.sort_values(metric, ascending=not aspect_analysis).copy()
+    shown = frame.sort_values(
+        [metric, "aspect"], ascending=[not aspect_analysis, True]
+    ).copy()
     if aspect_analysis:
         figure = px.bar(shown, x=metric, y="display_label", orientation="h")
         figure.update_traces(
@@ -120,7 +128,13 @@ def aspect_prevalence_chart(frame: pd.DataFrame, metric: str, *, aspect_analysis
             hovertemplate="%{y}<br>Share of analysed posts: %{x:.1%}<extra></extra>",
         )
         figure.update_xaxes(tickformat=".0%", title="Share of analysed posts (%)")
-        figure.update_yaxes(title="Aspect", automargin=True)
+        figure.update_yaxes(
+            title="Aspect",
+            automargin=True,
+            categoryorder="array",
+            categoryarray=shown.display_label.tolist(),
+            autorange="reversed",
+        )
         figure.update_layout(title="", showlegend=False)
         return plot_style(figure, 650)
     shown["support"] = shown.support_class.map(support_text)
@@ -231,10 +245,6 @@ def render_reviewed_themes(themes: ReviewedThemeDashboardData, aspect: str) -> N
                 metadata = [str(item.primary_language)]
                 if str(item.target).strip(): metadata.append(f"Target: {item.target}")
                 st.caption(" · ".join(metadata))
-    notice("Scope", "These are descriptive reviewed discussion themes only. Researcher perceptions and participant interview propositions have not yet been developed.", "info")
-    st.caption("Some model-estimated aspect mentions were not assigned to stable ALTA semantic clusters and are excluded from the reviewed theme taxonomy.")
-
-
 def trend_chart(frame: pd.DataFrame, selected_aspects: list[str], labels: dict[str, str]) -> go.Figure:
     shown = frame[frame.aspect.isin(selected_aspects)].sort_values("year")
     figure = go.Figure()
@@ -568,17 +578,19 @@ def render_aspect_explorer(data: DashboardData, labels: dict[str, str]) -> None:
         )
     )
     aspect_display["document_prevalence_all"] = aspect_display.affected_document_count / aspect_display.total_documents
-    aspect_display["mean_mentions_per_affected_document"] = aspect_display.mention_count / aspect_display.affected_document_count
+    aspect_display = aspect_display.loc[
+        ~aspect_display.aspect.isin(HIDDEN_ASPECT_ANALYSIS_IDS)
+    ].copy()
+    aspect_display = aspect_display.sort_values(
+        ["document_prevalence_all", "aspect"], ascending=[False, True]
+    )
     section_title("01", "Aspect ranking", "Document prevalence across the displayed editions")
     st.plotly_chart(aspect_prevalence_chart(aspect_display, "document_prevalence_all", aspect_analysis=True), width="stretch")
     section_title("02", "Aspect detail", "Select an aspect to inspect its 2023–2025 descriptive record")
     aspect = st.selectbox("Aspect", aspect_display.aspect.tolist(), format_func=lambda value: labels[value], key="aspect_explorer")
     overview = aspect_display[aspect_display.aspect.eq(aspect)].iloc[0]
     st.markdown(f"<div class='section-heading'><div><h2>{html.escape(overview.display_label)}</h2><p>{overview.document_prevalence_all:.1%} of 2023–2025 analysed posts contained this model-estimated aspect.</p></div></div>", unsafe_allow_html=True)
-    cols = st.columns(3)
-    with cols[0]: metric_card("Affected posts", f"{overview.affected_document_count:,}", f"{overview.document_prevalence_all:.1%} prevalence")
-    with cols[1]: metric_card("Aspect mentions", f"{overview.mention_count:,}", "Model-estimated propositions")
-    with cols[2]: metric_card("Mean mentions", f"{overview.mean_mentions_per_affected_document:.2f}", "Per affected post")
+    metric_card("Affected posts", f"{overview.affected_document_count:,}", f"{overview.document_prevalence_all:.1%} prevalence")
     if aspect == "weather_conditions":
         caution = data.cautions[data.cautions.item.eq("weather_conditions")].iloc[0]
         notice("Weather interpretation", caution.reason, "warning")

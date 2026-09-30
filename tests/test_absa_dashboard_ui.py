@@ -216,9 +216,34 @@ def test_executive_plotly_titles_and_theme_do_not_override_native_colors():
 def test_aspect_analysis_uses_2023_to_2025_display_data_and_simplified_themes():
     import json
 
-    app = AppTest.from_file("absa_dashboard.py", default_timeout=45).run()
+    expected_aspect_ids = {
+        "crowd_community_atmosphere",
+        "physical_experience",
+        "photography_media",
+        "route_course",
+        "organization_operations",
+        "weather_conditions",
+        "value_cost",
+        "safety_medical",
+        "volunteer_support",
+        "finisher_items",
+        "registration_entry",
+        "aid_stations_hydration",
+        "facilities",
+        "transport_access",
+        "race_pack_expo",
+        "event_information",
+    }
+    app = AppTest.from_file("deploy/streamlit_app.py", default_timeout=45).run()
     app.sidebar.radio[0].set_value("Aspect Analysis").run(timeout=45)
     selector = next(item for item in app.selectbox if item.label == "Aspect")
+    expected_labels = set(
+        load_dashboard_data().aspects.set_index("aspect").loc[
+            sorted(expected_aspect_ids), "display_label"
+        ]
+    )
+    assert set(selector.options) == expected_labels
+    assert len(selector.options) == 16
     selector.select("route_course").run(timeout=45)
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
@@ -228,7 +253,8 @@ def test_aspect_analysis_uses_2023_to_2025_display_data_and_simplified_themes():
     assert "All 20 aspect families remain visible, including lower-support categories" not in visible
     assert "Finalized researcher-reviewed discussion themes within the selected ABSA aspect" not in visible
     assert "Themes are ordered by unique-document support" not in visible
-    assert "Researcher perceptions and participant interview propositions have not yet been developed" in visible
+    assert "Researcher perceptions and participant interview propositions have not yet been developed" not in visible
+    assert "Some model-estimated aspect mentions were not assigned to stable ALTA semantic clusters" not in visible
     assert any("within aspect" in item.label for item in app.expander)
     assert not any(item.label == "Ranking measure" for item in app.radio)
     assert not any("Year estimates and frozen pairwise comparisons" in item.label for item in app.expander)
@@ -241,6 +267,23 @@ def test_aspect_analysis_uses_2023_to_2025_display_data_and_simplified_themes():
     assert ranking_spec["layout"]["yaxis"]["title"]["text"] == "Aspect"
     assert "support" not in ranking_trace["hovertemplate"].lower()
     assert "effect" not in ranking_trace["hovertemplate"].lower()
+    ranking_data = (
+        load_dashboard_data().year_aspect
+        .loc[lambda frame: frame.year.isin({2023, 2024, 2025})]
+        .groupby(["aspect", "display_label"], as_index=False)
+        .agg(
+            affected_document_count=("affected_documents", "sum"),
+            total_documents=("total_documents_year", "sum"),
+        )
+    )
+    ranking_data["document_prevalence_all"] = (
+        ranking_data.affected_document_count / ranking_data.total_documents
+    )
+    expected_ranking = ranking_data.loc[
+        ranking_data.aspect.isin(expected_aspect_ids)
+    ].sort_values(["document_prevalence_all", "aspect"], ascending=[False, True])
+    assert ranking_spec["layout"]["yaxis"]["categoryarray"] == expected_ranking.display_label.tolist()
+    assert ranking_spec["layout"]["yaxis"]["autorange"] == "reversed"
 
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
     assert "load_reviewed_theme_dashboard_data" in source
@@ -248,10 +291,12 @@ def test_aspect_analysis_uses_2023_to_2025_display_data_and_simplified_themes():
     explorer_source = source.split("def render_aspect_explorer", 1)[1].split("def topic_dropdown_population", 1)[0]
     assert "data.pairwise" not in explorer_source
     assert "ASPECT_ANALYSIS_YEARS" in explorer_source
+    assert "HIDDEN_ASPECT_ANALYSIS_IDS" in explorer_source
+    assert 'metric_card("Mean mentions"' not in explorer_source
 
 
 def test_insufficient_support_aspect_has_clear_nonempty_state():
-    app = AppTest.from_file("absa_dashboard.py", default_timeout=45).run()
+    app = AppTest.from_file("deploy/streamlit_app.py", default_timeout=45).run()
     app.sidebar.radio[0].set_value("Aspect Analysis").run(timeout=45)
     selector = next(item for item in app.selectbox if item.label == "Aspect")
     selector.select("facilities").run(timeout=45)
