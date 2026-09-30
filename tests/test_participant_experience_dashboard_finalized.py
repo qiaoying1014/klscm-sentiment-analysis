@@ -45,11 +45,23 @@ def test_filters_and_keyword_only_select_finalized_theme_rows():
 def test_dashboard_page_exposes_finalized_explorer_and_methodology_note():
     from streamlit.testing.v1 import AppTest
 
-    app = AppTest.from_file("absa_dashboard.py", default_timeout=60).run()
+    app = AppTest.from_file("deploy/streamlit_app.py", default_timeout=60).run()
     app.sidebar.radio[0].set_value("Participant Experience & Organizer Insights").run(timeout=60)
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption, *app.info])
     assert "Showing 99 of 99 finalized themes." in visible
-    assert PROVENANCE in visible
     assert "not participant percentages" in visible
-    assert {"Aspect", "Experience category", "Source coverage", "Results page"} <= {item.label for item in app.selectbox}
+    assert {"Aspect", "Experience category", "Results page"} <= {item.label for item in app.selectbox}
+    assert "Source coverage" not in visible
+    assert "Instagram support:" not in visible
+    assert "long-form support:" not in visible
+
+    source = Path("marathon_absa/participant_experience_page.py").read_text(encoding="utf-8")
+    assert "filter_themes(themes, aspect, category, None)" in source
+    assert "evidence['source']" not in source
+    assert "evidence['evidence_id']" not in source
+    assert "parent_id" not in source
+    assert "Instagram support:" not in source
+    assert "long-form support:" not in source
+    assert 'st.expander("Supporting participant evidence")' in source
+    assert "with st.container(border=True):" in source

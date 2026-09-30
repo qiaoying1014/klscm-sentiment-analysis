@@ -13,11 +13,7 @@ from .participant_experience_dashboard_data import (
 TITLE = "Participant Experience"
 PROVENANCE = "AI-assisted substantive review; not independent human validation."
 PAGE_SIZE = 12
-COVERAGE = {
-    "cross_source": "Instagram + long-form review evidence",
-    "instagram_only": "Instagram evidence only",
-    "blog_only_emergent": "Long-form review evidence only",
-}
+COVERAGE = {"cross_source", "instagram_only", "blog_only_emergent"}
 
 
 @st.cache_data(show_spinner=False)
@@ -42,7 +38,7 @@ def _matches_keyword(theme: dict, claims: dict, query: str) -> bool:
 def _theme_card(theme: dict, claims: dict) -> None:
     title = f"{theme['aspect_label']} · {theme['theme_label']}"
     with st.expander(title):
-        st.caption(f"{theme['experience_classification']} · {COVERAGE[theme['source_coverage']]}")
+        st.caption(theme["experience_classification"])
         st.markdown("**Participant experience**")
         st.write(_claim(claims, "participant_experience_summary"))
         columns = st.columns(3)
@@ -55,25 +51,16 @@ def _theme_card(theme: dict, claims: dict) -> None:
         st.write(_claim(claims, "organizer_insight"))
         st.markdown("**Possible organizer consideration**")
         st.write(_claim(claims, "organizer_implication"))
-        st.caption(_claim(claims, "evidence_scope_note"))
-        st.caption(
-            f"Instagram support: {theme['instagram_support_documents']} theme documents; "
-            f"long-form support: {theme['blog_support_reviews']} parent reviews. These are separate source units."
-        )
-        with st.expander("View supporting evidence"):
-            st.caption("Examples support the synthesis; they are not the complete participant population.")
+        with st.expander("Supporting participant evidence"):
             for evidence in theme["representative_evidence"]:
-                source = "Instagram" if evidence["source"] == "instagram" else "Long-form review"
-                st.markdown(f"**{source} · {evidence['sentiment'].title()}**")
-                st.write(evidence["text"])
-                if evidence.get("english_gloss") and evidence["english_gloss"] != evidence["text"]:
-                    st.caption("Existing English gloss: " + evidence["english_gloss"])
-                st.caption(f"Evidence ID: {evidence['evidence_id']} · Source context: {evidence['parent_id']}")
+                with st.container(border=True):
+                    st.markdown(f"**{evidence['sentiment'].title()}**")
+                    st.write(evidence["text"])
 
 
 def render_participant_experience(root: Path = ROOT) -> None:
     st.title(TITLE)
-    st.write("What participants valued, struggled with, and experienced around KLSCM, synthesized from finalized Instagram and long-form review evidence.")
+    st.write("What participants valued, struggled with, and experienced around KLSCM.")
     try:
         data = _load_release(str(Path(root)))
     except (FileNotFoundError, ValueError, KeyError, TypeError) as exc:
@@ -85,31 +72,19 @@ def render_participant_experience(root: Path = ROOT) -> None:
     package = data["evidence"]
     themes = package["themes"]
     insights = {item["theme_id"]: item["claims"] for item in data["insights"]}
-    source_counts = {coverage: sum(theme["source_coverage"] == coverage for theme in themes) for coverage in COVERAGE}
-    metrics = st.columns(4)
-    metrics[0].metric("Finalized themes", len(themes), "Verified release")
-    metrics[1].metric("Instagram-only", source_counts["instagram_only"], "Separate source coverage")
-    metrics[2].metric("Cross-source", source_counts["cross_source"], "Observed in both sources")
-    metrics[3].metric("Long-form-only", source_counts["blog_only_emergent"], "Emergent review themes")
+    st.metric("Finalized themes", len(themes), "Verified release")
     st.caption("Theme counts help navigation only. They do not estimate how many participants had an experience or rank its importance.")
 
-    with st.expander("About this analysis"):
-        st.write("Instagram and long-form reviews are separate evidence sources. Themes summarize observed feedback, are descriptive rather than causal, and source coverage is not statistical representativeness. Quantitative ABSA charts elsewhere show sentiment of extracted aspect mentions; they do not measure the share of happy participants.")
-        st.caption(PROVENANCE)
-        st.caption(package["model_limitation"])
-
     st.subheader("Explore participant experience")
-    st.write("Browse finalized themes by aspect, experience classification, source coverage, or a keyword. No ranking is applied.")
-    filters = st.columns(4)
+    st.write("Browse finalized themes by aspect, experience classification, or a keyword. No ranking is applied.")
+    filters = st.columns(3)
     with filters[0]:
         aspect = st.selectbox("Aspect", [None, *package["aspects"]], format_func=lambda value: "All aspects" if value is None else package["aspects"][value], key="experience_aspect")
     with filters[1]:
         category = st.selectbox("Experience category", [None, *CATEGORIES], format_func=lambda value: "All categories" if value is None else value, key="experience_category")
     with filters[2]:
-        coverage = st.selectbox("Source coverage", [None, *COVERAGE], format_func=lambda value: "All source coverage" if value is None else COVERAGE[value], key="experience_source")
-    with filters[3]:
         keyword = st.text_input("Search themes", placeholder="e.g. hydration, training, volunteers", key="experience_search")
-    selected = [theme for theme in filter_themes(themes, aspect, category, coverage)
+    selected = [theme for theme in filter_themes(themes, aspect, category, None)
                 if _matches_keyword(theme, insights[theme["theme_id"]], keyword.strip())]
     st.caption(f"Showing {len(selected)} of {len(themes)} finalized themes.")
     if not selected:

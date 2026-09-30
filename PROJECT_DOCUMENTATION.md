@@ -1733,3 +1733,7 @@ The Executive Overview was further simplified by removing **Descriptive context 
 ### Historical dashboard navigation scope (2026-09-30; deployment/pre-today only)
 
 The branch-local sidebar navigation now displays only **Executive Overview**, **Topic Analysis**, **Aspect Analysis**, **Participant Experience & Organizer Insights**, and **Word Cloud** through the `VISIBLE_DASHBOARD_PAGES` presentation constant. The rendering code and frozen source data for hidden pages remain preserved; this change only removes those entries from the deployed sidebar.
+
+### Participant Experience reader-facing evidence simplification (2026-09-30; deployment/pre-today only)
+
+The Participant Experience & Organizer Insights page no longer exposes Source Coverage filtering, source-coverage metrics, source-specific explanations, source support counts, provenance labels, parent/source identifiers, or evidence IDs. Theme filtering always uses the existing all-sources behavior (`coverage=None`). The strict finalized-release loader, source-aware validation, source coverage fields, parent identifiers, evidence IDs, source labels, assignments, sentiment values, and evidence-to-theme relationships remain intact internally for audit and reproducibility. Each existing frozen excerpt is displayed verbatim in its own bordered, source-neutral evidence block with its existing sentiment label; no evidence text, analytical output, or frozen artifact changed.
