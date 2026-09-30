@@ -32,7 +32,7 @@ def test_research_and_caution_copy_comes_from_frozen_marts():
     assert "weather_conditions" in set(data.cautions.item)
     assert "photography_media" in set(data.cautions.item)
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
-    assert 'data.metadata["warnings"]["topic"]' in source
+    assert 'data.metadata["warnings"]' in source
     assert "data.findings.itertuples()" in source and "data.cautions.itertuples()" in source
 
 
@@ -148,7 +148,7 @@ def test_detailed_research_findings_page_remains_available_after_summary_additio
 def test_topic_language_and_methodology_pages_show_frozen_boundaries():
     app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
     app.sidebar.radio[0].set_value("Topic Analysis").run()
-    assert any("descriptive" in item.value.lower() for item in app.markdown)
+    assert any("recurring areas of discussion" in item.value.lower() for item in app.markdown)
     app.sidebar.radio[0].set_value("Language Analysis").run()
     assert any("descriptive" in item.value.lower() for item in app.markdown)
     app.sidebar.radio[0].set_value("Methodology").run()
@@ -241,10 +241,32 @@ def test_insufficient_support_aspect_has_clear_nonempty_state():
     assert "does not imply that the aspect is unimportant" in visible
 
 
-def test_topic_explorer_remains_available_with_construct_clarification():
+def test_topic_analysis_is_a_read_only_overview_of_frozen_topic_prevalence():
+    import base64
+    import json
+
     app = AppTest.from_file("absa_dashboard.py", default_timeout=45).run()
     app.sidebar.radio[0].set_value("Topic Analysis").run(timeout=45)
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
-    assert "broad corpus-wide discourse" in visible
-    assert "reviewed aspect themes" in visible
+    assert "Topic analysis identifies recurring areas of discussion" in visible
+    assert "Topics Discussed in Participant Feedback" in [item.value for item in app.subheader]
+    assert not app.selectbox and not app.metric and not app.expander and not app.dataframe
+
+    charts = app.get("plotly_chart")
+    assert len(charts) == 1
+    spec = json.loads(charts[0].proto.spec)
+    trace = spec["data"][0]
+    layout = spec["layout"]
+    assert len(trace["y"]) == 32
+    assert trace["x"]["dtype"] == "f8"
+    assert len(base64.b64decode(trace["x"]["bdata"])) // 8 == 32
+    assert trace["type"] == "bar" and trace["orientation"] == "h"
+    assert layout["xaxis"]["title"]["text"] == "Share of analysed feedback (%)"
+    assert layout["yaxis"]["title"]["text"] == "Topic"
+    assert "mentions" not in trace["hovertemplate"].lower()
+    assert "topic_id" not in trace["hovertemplate"].lower()
+
+    source = Path("absa_dashboard.py").read_text(encoding="utf-8")
+    assert "Final consolidated topic" not in source
+    assert "topic_aspects =" not in source

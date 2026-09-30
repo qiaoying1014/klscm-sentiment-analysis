@@ -568,25 +568,23 @@ def render_aspect_explorer(data: DashboardData, labels: dict[str, str]) -> None:
 
 
 def render_topic_explorer(data: DashboardData) -> None:
-    page_header("Descriptive analysis", "Topic Analysis", "Aspect and sentiment patterns within the frozen 32-topic taxonomy")
-    notice("Descriptive only", data.metadata["warnings"]["topic"], "info")
-    st.caption("Topics describe broad corpus-wide discourse, while reviewed aspect themes describe what participants discuss within a specific ABSA aspect.")
-    topic_ids = data.topics.sort_values("topic_id").topic_id.tolist()
-    topic = st.selectbox("Final consolidated topic", topic_ids,
-        format_func=lambda value: data.topics.loc[data.topics.topic_id.eq(value), "topic_label"].iloc[0])
-    row = data.topics[data.topics.topic_id.eq(topic)].iloc[0]
-    cols = st.columns(3)
-    with cols[0]: metric_card("Topic documents", f"{row.document_count:,}", "Frozen substantive posts")
-    with cols[1]: metric_card("Aspect mentions", f"{row.mention_count:,}", "Model-estimated mentions")
-    with cols[2]: metric_card("Leading aspect", str(row.top_aspect_1).replace("_", " ").title(), f"{row.top_aspect_1_document_prevalence:.1%} of topic posts")
-    topic_aspects = data.topic_aspect[data.topic_aspect.topic_id.eq(topic)].sort_values("document_prevalence", ascending=True)
-    figure = px.bar(topic_aspects, x="document_prevalence", y="aspect_display_label", orientation="h",
-                    custom_data=["affected_documents", "mention_count"])
-    figure.update_traces(marker_color=ACCENT, hovertemplate="%{y}<br>%{x:.1%} of topic posts<br>%{customdata[0]:,} documents<br>%{customdata[1]:,} mentions<extra></extra>")
-    figure.update_xaxes(tickformat=".0%", title="Share of topic posts"); figure.update_layout(title=row.topic_label)
-    st.plotly_chart(plot_style(figure, 590), width="stretch")
-    with st.expander("Accessible topic-aspect table"):
-        st.dataframe(topic_aspects, hide_index=True, width="stretch")
+    page_header(
+        "",
+        "Topic Analysis",
+        "Topic analysis identifies recurring areas of discussion within participant feedback, providing an overview of what participants commonly discussed across the analysed marathon editions.",
+    )
+    st.subheader("Topics Discussed in Participant Feedback")
+    topics = data.topics.loc[:, ["topic_label", "document_count"]].copy()
+    topics["feedback_share"] = topics["document_count"] / data.corpus["total_documents"]
+    topics = topics.sort_values("feedback_share", ascending=True)
+    figure = px.bar(topics, x="feedback_share", y="topic_label", orientation="h")
+    figure.update_traces(
+        marker_color=ACCENT,
+        hovertemplate="%{y}<br>Share of analysed feedback: %{x:.1%}<extra></extra>",
+    )
+    figure.update_xaxes(tickformat=".0%", title="Share of analysed feedback (%)")
+    figure.update_yaxes(title="Topic")
+    st.plotly_chart(plot_style(figure, max(620, len(topics) * 24)), width="stretch")
 
 
 def render_language_explorer(data: DashboardData) -> None:
