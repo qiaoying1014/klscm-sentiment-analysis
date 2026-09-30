@@ -15,8 +15,7 @@ from marathon_absa.dashboard_data import DashboardData, display_label_map, load_
 from marathon_absa.reviewed_theme_dashboard_data import (
     ReviewedThemeDashboardData, load_reviewed_theme_dashboard_data,
 )
-from marathon_absa.participant_experience_dashboard_data import ROOT as PARTICIPANT_EXPERIENCE_ROOT
-from marathon_absa.participant_experience_page import _load_release, render_participant_experience
+from marathon_absa.participant_experience_page import render_participant_experience
 from marathon_absa.wordcloud_data import (
     evidence_frequency_table, load_wordcloud_sources,
     overall_participant_experience_evidence, tokenize_evidence_mentions,
@@ -26,6 +25,7 @@ SENTIMENT_COLORS = {"positive": "#159a69", "negative": "#d84a4a", "mixed": "#755
 ACCENT = "#2563eb"
 HIDDEN_TOPIC_ANALYSIS_IDS = frozenset({38})  # KLSCM 2019 Race Weekend and Pre-Race Activities
 ASPECT_ANALYSIS_YEARS = (2023, 2024, 2025)
+DISPLAYED_EDITIONS_TEXT = "2023 \u00b7 2024 \u00b7 2025"
 HIDDEN_ASPECT_ANALYSIS_IDS = frozenset({
     "race_performance",
     "emotional_experience",
@@ -283,38 +283,23 @@ def render_executive_overview(data: DashboardData) -> None:
         "<div class='executive-header'><div class='executive-kicker'>Frozen research synthesis</div>"
         "<div class='executive-heading-row'><div><h1>Standard Chartered Kuala Lumpur Marathon</h1>"
         "<h2>Sentiment &amp; Perception Analysis Dashboard</h2></div>"
-        "<div class='executive-editions'><span>Observed editions</span><strong>2019 · 2023 · 2024 · 2025</strong></div></div>"
+        "<div class='executive-editions'><span>Observed editions</span><strong>" + DISPLAYED_EDITIONS_TEXT + "</strong></div></div>"
         "<p>One-page research brief covering corpus scale, aspect sentiment, edition-level patterns, topics, languages and evidence quality.</p></div>",
         unsafe_allow_html=True,
     )
-    try:
-        experience_release = _load_release(str(PARTICIPANT_EXPERIENCE_ROOT))
-        experience_cols = st.columns([1, 3, 1])
-        with experience_cols[0]:
-            st.metric("Participant experience", len(experience_release["insights"]), "Verified finalized themes")
-        with experience_cols[1]:
-            st.markdown("**Participant Experience**  ")
-            st.caption("Read the finalized, evidence-grounded synthesis of what participants valued, struggled with and experienced across Instagram and long-form reviews. Theme counts are not participant prevalence or priority rankings.")
-        with experience_cols[2]:
-            st.button("Explore Participant Experience", key="open_participant_experience",
-                      on_click=lambda: st.session_state.update({"dashboard_page": "Participant Experience & Organizer Insights"}))
-    except (FileNotFoundError, ValueError, KeyError, TypeError):
-        st.caption("Participant Experience is available only when its verified finalized release passes integrity checks.")
-
     corpus = data.corpus
     positive = float(data.sentiment_overall.loc[data.sentiment_overall.sentiment.eq("positive"), "mention_share"].iloc[0])
     negative = float(data.sentiment_overall.loc[data.sentiment_overall.sentiment.eq("negative"), "mention_share"].iloc[0])
     kpis = [
         ("📚", "Analyzed Posts", f"{corpus['total_documents']:,}", "Substantive posts", "blue"),
         ("🎯", "Posts With Aspects", f"{corpus['mention_bearing_documents']:,}", f"{corpus['mention_bearing_documents']/corpus['total_documents']:.1%} of posts", "blue"),
-        ("🧩", "Aspect Mentions", f"{corpus['total_mentions']:,}", "Model-estimated", "blue"),
         ("👍", "Positive Mentions", f"{positive:.1%}", "of aspect mentions", "positive"),
         ("👎", "Negative Mentions", f"{negative:.1%}", "of aspect mentions", "negative"),
         ("🔀", "Multi-Aspect Posts", f"{corpus['multi_aspect_documents']:,}", f"{corpus['multi_aspect_rate_all_documents']:.1%} of posts", "mixed"),
     ]
     st.markdown("<div class='executive-section-label'>Research at a glance</div>", unsafe_allow_html=True)
-    for start in (0, 3):
-        for column, values in zip(st.columns(3, gap="small"), kpis[start:start + 3]):
+    for metric_row in (kpis[:3], kpis[3:]):
+        for column, values in zip(st.columns(len(metric_row), gap="small"), metric_row):
             with column:
                 executive_metric_card(*values)
 
@@ -362,54 +347,14 @@ def render_executive_overview(data: DashboardData) -> None:
     with row3[1], st.container(border=True):
         st.markdown("<h3 class='compact-title'>Principal Aspect Prevalence</h3>", unsafe_allow_html=True)
         principal = data.aspects.loc[data.aspects.recommended_for_emphasis, "aspect"].tolist()
-        figure = trend_chart(data.year_aspect, principal, labels)
+        figure = trend_chart(
+            data.year_aspect[data.year_aspect.year.isin(ASPECT_ANALYSIS_YEARS)],
+            principal,
+            labels,
+        )
         figure.update_yaxes(title=None); figure.update_xaxes(title=None)
         st.plotly_chart(compact_style(figure, 260), width="stretch", key="executive_temporal")
         st.caption("Frozen document prevalence with Wilson 95% confidence intervals")
-    st.markdown("<div class='executive-section-label'>Edition signal and evidence synthesis</div>", unsafe_allow_html=True)
-    row4 = st.columns([1, 1.25], gap="small")
-    with row4[0], st.container(border=True):
-        st.markdown("<h3 class='compact-title'>Training &amp; Preparation Sentiment</h3>", unsafe_allow_html=True)
-        training = data.year_aspect[data.year_aspect.aspect.eq("training_preparation_pacing")]
-        figure = go.Figure()
-        figure.add_trace(go.Scatter(x=training.year, y=training.positive_document_share_within_aspect_year, name="Positive", mode="lines+markers", line=dict(color=SENTIMENT_COLORS["positive"], width=2.5)))
-        figure.add_trace(go.Scatter(x=training.year, y=training.negative_document_share_within_aspect_year, name="Negative", mode="lines+markers", line=dict(color=SENTIMENT_COLORS["negative"], width=2.5)))
-        figure.update_xaxes(tickmode="array", tickvals=[2019, 2023, 2024, 2025], title=None)
-        figure.update_yaxes(tickformat=".0%", range=[0, .72], title=None)
-        st.plotly_chart(compact_style(figure, 260), width="stretch", key="executive_training")
-        st.caption("Document-level positive and negative presence may overlap.")
-    with row4[1], st.container(border=True):
-        sentiment_shares = data.sentiment_overall.set_index("sentiment").mention_share
-        top_aspects = data.aspects.nlargest(3, "document_prevalence_all").display_label.tolist()
-        insight_items = []
-        for _, finding in data.findings.iterrows():
-            if finding.finding_type == "aspect_prevalence":
-                insight = f"{labels[finding.aspect]}: {pct(finding['2019_value'])} to {pct(finding['2025_value'])}"
-            else:
-                insight = f"{labels[finding.aspect]}: more positive and less negative discussion"
-            insight_items.append(f"<li>{html.escape(insight)}</li>")
-        st.markdown(
-            "<div class='ai-summary'>"
-            "<div class='ai-summary-heading'><h3>AI Summary &amp; Key Insights</h3>"
-            + badge("Frozen research summary", "accent")
-            + "</div><div class='ai-summary-source'>Generated from frozen analysis outputs</div>"
-            + "<p class='ai-summary-overall'>Across "
-            + f"{data.corpus['total_documents']:,} analyzed posts, positive sentiment was the largest share of "
-            + f"{data.corpus['total_mentions']:,} model-estimated aspect mentions ({pct(sentiment_shares['positive'])}; "
-            + f"negative {pct(sentiment_shares['negative'])}, mixed {pct(sentiment_shares['mixed'])}, "
-            + f"neutral {pct(sentiment_shares['neutral'])}). The most prevalent substantive aspects were "
-            + html.escape(", ".join(top_aspects[:-1]) + f", and {top_aspects[-1]}.")
-            + "</p><ul class='ai-summary-insights'>" + "".join(insight_items) + "</ul>"
-            + "<p class='ai-summary-takeaway'><strong>Takeaway.</strong> Later observed editions contained more "
-            + "performance-, community-, and physical-experience-related discussion, while training and preparation "
-            + "discussion became more positive and less negative.</p>"
-            + f"<div class='ai-summary-quality'>Development evidence: precision {data.metadata['model_precision']:.3f} "
-            + f"&middot; recall {data.metadata['model_recall']:.3f}</div>"
-            + "<p class='ai-summary-caution'>Associations in model-estimated labels, not causal changes in participant "
-            + "attitudes. " + html.escape(data.metadata["warnings"]["temporal"]) + "</p></div>",
-            unsafe_allow_html=True,
-        )
-
     st.markdown("<div class='executive-section-label'>Descriptive context and research scope</div>", unsafe_allow_html=True)
     row5 = st.columns([1.15, 1, .9], gap="small")
     with row5[0], st.container(border=True):
@@ -906,7 +851,7 @@ labels = display_label_map(dashboard)
 with st.sidebar:
     st.markdown("<div class='sidebar-brand'><strong>KLSCM</strong><h2>Sentiment &amp; Perception Analysis</h2><p>Social Media &amp; Long-form Reviews</p></div>",unsafe_allow_html=True)
     page=st.radio("Research dashboard navigation",["Participant Experience & Organizer Insights","Executive Overview","Overview","Social Media Analytics","Aspect Analysis","Temporal Trends","Topic Analysis","Language Analysis","Word Cloud","Research Findings","Cross-Source Analysis","Methodology"],label_visibility="collapsed",index=1,key="dashboard_page")
-    editions = "2023 · 2024 · 2025" if page == "Aspect Analysis" else "2019 · 2023 · 2024 · 2025"
+    editions = DISPLAYED_EDITIONS_TEXT
     st.markdown(f"<div class='sidebar-context'><strong>Kuala Lumpur Standard Chartered Marathon</strong><p>Observed editions:<br>{editions}</p></div>",unsafe_allow_html=True)
 
 pages={"Participant Experience & Organizer Insights":render_participant_experience,"Executive Overview":lambda:render_executive_overview(dashboard),"Overview":lambda:render_overview(dashboard),"Social Media Analytics":lambda:render_social_media(dashboard),

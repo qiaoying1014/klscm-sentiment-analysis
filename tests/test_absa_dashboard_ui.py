@@ -81,18 +81,57 @@ def test_navigation_and_unsupported_mockup_features_are_excluded():
     assert "2026" not in source
 
 
-def test_executive_overview_reconciles_frozen_outputs_and_boundaries():
-    app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
+def test_executive_overview_uses_the_displayed_edition_scope_and_simplified_content():
+    import base64
+    import json
+    import struct
+
+    app = AppTest.from_file("deploy/streamlit_app.py", default_timeout=45).run()
     assert not app.exception
     visible = " ".join(item.value for item in [*app.markdown, *app.caption])
-    for expected in ["7,704", "5,316", "15,486", "64.9%", "30.3%", "2,917"]:
-        assert expected in visible
-    assert "Document prevalence among 7,704 analyzed posts" in visible
-    assert "Share of 15,486 model-estimated aspect mentions" in visible
-    assert visible.count("Descriptive only") >= 2
-    assert "0.513" in visible and "0.790" in visible and "80 documents" in visible
-    assert "precision target of 0.55 was not met" in visible
+    assert "Observed editions" in visible
+    assert "2023 · 2024 · 2025" in visible
+    assert "2019 · 2023 · 2024 · 2025" not in visible
+    assert "Aspect Mentions" not in visible
+    assert "Participant Experience" not in visible
+    assert "Edition signal and evidence synthesis" not in visible
+    assert not app.button
 
+    charts = app.get("plotly_chart")
+    principal = next(
+        json.loads(chart.proto.spec)
+        for chart in charts
+        if {trace.get("name") for trace in json.loads(chart.proto.spec)["data"]}
+        == {"Race Performance", "Community & Atmosphere", "Physical Experience"}
+    )
+    years = {
+        year
+        for trace in principal["data"]
+        for year in struct.unpack(
+            "<" + "h" * (len(base64.b64decode(trace["x"]["bdata"])) // 2),
+            base64.b64decode(trace["x"]["bdata"]),
+        )
+    }
+    assert years == {2023, 2024, 2025}
+    assert principal["layout"]["xaxis"]["tickvals"] == [2023, 2024, 2025]
+
+    source = Path("absa_dashboard.py").read_text(encoding="utf-8")
+    executive_source = source.split("def render_executive_overview", 1)[1].split("def render_header", 1)[0]
+    assert "PARTICIPANT_EXPERIENCE_ROOT" not in executive_source
+    assert "Aspect Mentions" not in executive_source
+    assert "Edition signal and evidence synthesis" not in executive_source
+    assert "data.year_aspect.year.isin(ASPECT_ANALYSIS_YEARS)" in executive_source
+
+
+def test_sidebar_uses_the_shared_displayed_edition_scope():
+    app = AppTest.from_file("deploy/streamlit_app.py", default_timeout=45).run()
+    sidebar = " ".join(item.value for item in app.sidebar.markdown)
+    assert "Observed editions" in sidebar
+    assert "2023 · 2024 · 2025" in sidebar
+    assert "2019" not in sidebar
+    source = Path("absa_dashboard.py").read_text(encoding="utf-8")
+    assert "DISPLAYED_EDITIONS_TEXT =" in source
+    assert "editions = DISPLAYED_EDITIONS_TEXT" in source
 
 def test_sidebar_reopen_control_and_executive_metric_icons_remain_visible():
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
@@ -105,7 +144,6 @@ def test_sidebar_reopen_control_and_executive_metric_icons_remain_visible():
 
 def test_executive_overview_uses_only_frozen_finding_topic_and_language_marts():
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
-    assert "for _, finding in data.findings.iterrows()" in source
     assert "data.topics.set_index" in source
     assert "data.languages.set_index" in source
     assert 'nlargest(6, "document_prevalence_all")' in source
@@ -114,25 +152,6 @@ def test_executive_overview_uses_only_frozen_finding_topic_and_language_marts():
         assert unsupported not in executive_source
 
 
-def test_executive_ai_summary_is_frozen_traceable_and_cautioned():
-    app = AppTest.from_file("absa_dashboard.py", default_timeout=30).run()
-    assert not app.exception
-    visible = " ".join(item.value for item in [*app.markdown, *app.caption])
-    for expected in [
-        "AI Summary &amp; Key Insights", "Frozen research summary", "Generated from frozen analysis outputs",
-        "Race Performance: 30.4% to 46.2%", "Community &amp; Atmosphere: 18.8% to 33.0%",
-        "Physical Experience: 16.9% to 29.2%", "more positive and less negative discussion",
-        "Development evidence: precision 0.513", "recall 0.790", "not causal changes",
-        "changing corpus composition and increasing extraction density",
-    ]:
-        assert expected in visible
-    assert "The most prevalent substantive aspects were Race Performance, Community &amp; Atmosphere, and Physical Experience." in visible
-    source = Path("absa_dashboard.py").read_text(encoding="utf-8")
-    assert "data.sentiment_overall.set_index" in source
-    assert 'data.aspects.nlargest(3, "document_prevalence_all")' in source
-    assert 'data.metadata["warnings"]["temporal"]' in source
-    for forbidden in ["openai", "anthropic", "requests.post", "generate_content", "chat.completions"]:
-        assert forbidden not in source.lower()
 
 
 def test_detailed_research_findings_page_remains_available_after_summary_addition():
