@@ -271,6 +271,8 @@ def test_aspect_analysis_uses_2023_to_2025_display_data_and_simplified_themes():
     ranking_trace = ranking_spec["data"][0]
     assert ranking_spec["layout"]["xaxis"]["title"]["text"] == "Share of analysed posts (%)"
     assert ranking_spec["layout"]["yaxis"]["title"]["text"] == "Aspect"
+    assert ranking_trace["texttemplate"] == "%{x:.1%}"
+    assert ranking_trace["textposition"] == "outside"
     assert "support" not in ranking_trace["hovertemplate"].lower()
     assert "effect" not in ranking_trace["hovertemplate"].lower()
     ranking_data = (
@@ -336,6 +338,9 @@ def test_topic_analysis_is_a_read_only_overview_of_frozen_topic_prevalence():
     assert trace["type"] == "bar" and trace["orientation"] == "h"
     assert layout["xaxis"]["title"]["text"] == "Share of analysed feedback (%)"
     assert layout["yaxis"]["title"]["text"] == "Topic"
+    assert trace["texttemplate"] == "%{x:.1%}"
+    assert trace["textposition"] == "outside"
+    assert layout["yaxis"]["autorange"] == "reversed"
     assert "mentions" not in trace["hovertemplate"].lower()
     assert "topic_id" not in trace["hovertemplate"].lower()
 
@@ -352,6 +357,7 @@ def test_topic_analysis_is_a_read_only_overview_of_frozen_topic_prevalence():
         .topic_label.tolist()
     )
     assert trace["y"] == expected_labels
+    assert layout["yaxis"]["categoryarray"] == expected_labels
 
     source = Path("absa_dashboard.py").read_text(encoding="utf-8")
     assert "topics = topic_dropdown_population(data)" in source

@@ -130,10 +130,13 @@ def aspect_prevalence_chart(frame: pd.DataFrame, metric: str, *, aspect_analysis
         [metric, "aspect"], ascending=[not aspect_analysis, True]
     ).copy()
     if aspect_analysis:
-        figure = px.bar(shown, x=metric, y="display_label", orientation="h")
+        figure = px.bar(shown, x=metric, y="display_label", orientation="h", text=metric)
         figure.update_traces(
             marker_color=ACCENT,
             hovertemplate="%{y}<br>Share of analysed posts: %{x:.1%}<extra></extra>",
+            texttemplate="%{x:.1%}",
+            textposition="outside",
+            cliponaxis=False,
         )
         figure.update_xaxes(tickformat=".0%", title="Share of analysed posts (%)")
         figure.update_yaxes(
@@ -564,13 +567,22 @@ def render_topic_explorer(data: DashboardData) -> None:
         y="topic_label",
         orientation="h",
         custom_data=["topic_id"],
+        text="feedback_share",
     )
     figure.update_traces(
         marker_color=ACCENT,
         hovertemplate="%{y}<br>Share of analysed feedback: %{x:.1%}<extra></extra>",
+        texttemplate="%{x:.1%}",
+        textposition="outside",
+        cliponaxis=False,
     )
     figure.update_xaxes(tickformat=".0%", title="Share of analysed feedback (%)")
-    figure.update_yaxes(title="Topic")
+    figure.update_yaxes(
+        title="Topic",
+        categoryorder="array",
+        categoryarray=topics.topic_label.tolist(),
+        autorange="reversed",
+    )
     st.plotly_chart(plot_style(figure, max(620, len(topics) * 24)), width="stretch")
 
 
@@ -830,7 +842,7 @@ except (FileNotFoundError, ValueError) as exc:
 
 labels = display_label_map(dashboard)
 with st.sidebar:
-    st.markdown("<div class='sidebar-brand'><strong>KLSCM</strong><h2>Sentiment &amp; Perception Analysis</h2><p>Social Media &amp; Long-form Reviews</p></div>",unsafe_allow_html=True)
+    st.markdown("<div class='sidebar-brand'><strong>KLSCM</strong><h2>Sentiment &amp; Perception Analysis</h2><p>Social Media Reviews</p></div>",unsafe_allow_html=True)
     page=st.radio("Research dashboard navigation", VISIBLE_DASHBOARD_PAGES, label_visibility="collapsed", index=0, key="dashboard_page")
     editions = DISPLAYED_EDITIONS_TEXT
     st.markdown(f"<div class='sidebar-context'><strong>Kuala Lumpur Standard Chartered Marathon</strong><p>Observed editions:<br>{editions}</p></div>",unsafe_allow_html=True)
