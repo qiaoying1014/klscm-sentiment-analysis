@@ -65,3 +65,4 @@ def test_dashboard_page_exposes_finalized_explorer_and_methodology_note():
     assert "long-form support:" not in source
     assert 'st.expander("Supporting participant evidence")' in source
     assert "with st.container(border=True):" in source
+    assert 'st.caption("Existing English gloss: " + evidence["english_gloss"])' in source

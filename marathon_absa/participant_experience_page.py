@@ -56,6 +56,8 @@ def _theme_card(theme: dict, claims: dict) -> None:
                 with st.container(border=True):
                     st.markdown(f"**{evidence['sentiment'].title()}**")
                     st.write(evidence["text"])
+                    if evidence.get("english_gloss") and evidence["english_gloss"] != evidence["text"]:
+                        st.caption("Existing English gloss: " + evidence["english_gloss"])
 
 
 def render_participant_experience(root: Path = ROOT) -> None:
